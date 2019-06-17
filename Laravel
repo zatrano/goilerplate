@@ -72,7 +72,7 @@ php artisan key:generate
 //Voyager Kurulumu
 composer require tcg/voyager
 php artisan voyager:install --with-dummy
-php artisan voyager:admin your@email.com --create
+php artisan voyager:admin zatrano@zatrano.com --create
 *************************************************************************
 
 *************************************************************************
