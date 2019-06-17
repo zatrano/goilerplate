@@ -1,0 +1,330 @@
+*************************************************************************
+//Laravel Kurulumu
+composer create-project --prefer-dist laravel/laravel proje
+*************************************************************************
+
+*************************************************************************
+//.env veritabanı ayarları
+APP_URL=http://localhost:8000
+DB_DATABASE=yonetim
+DB_USERNAME=root
+DB_PASSWORD=
+*************************************************************************
+
+*************************************************************************
+//app/Providers/AppServiceProvider.php ayarı
+use Illuminate\Support\Facades\Schema;
+
+public function boot()
+{
+    Schema::defaultStringLength(191);
+}
+*************************************************************************
+
+*************************************************************************
+//config/database.php ayarı
+'engine' => 'InnoDB ROW_FORMAT=DYNAMIC',
+*************************************************************************
+
+*************************************************************************
+//User Model yerini değiştirme
+config/auth.php
+'providers' => [
+        'users' => [
+            'driver' => 'eloquent',
+            'model' => App\Models\User::class, // changed
+        ],
+    ],
+
+config/services.php
+'stripe' => [
+        'model' => App\Models\User::class, // changed
+        'key' => env('STRIPE_KEY'),
+        'secret' => env('STRIPE_SECRET'),
+    ],
+
+database/factories/UserFactory.php
+$factory->define(App\Models\User::class, function (Faker $faker) {
+    ...
+});
+
+vendor\composer\autoload_classmap.php
+Line 30:     'App\\User' => $baseDir . '/app/User.php',
+
+vendor\composer\autoload_static.php
+Line 444:         'App\\User' => __DIR__ . '/../..' . '/app/User.php',
+*************************************************************************
+
+*************************************************************************
+//kullanıcı girişleri oluşturma
+php artisan make:auth
+
+***Controller daki user modelini unutma
+php artisan migrate
+*************************************************************************
+
+*************************************************************************
+//uygulama anahtarı oluşturma
+php artisan key:generate
+*************************************************************************
+
+*************************************************************************
+//Voyager Kurulumu
+composer require tcg/voyager
+php artisan voyager:install --with-dummy
+php artisan voyager:admin your@email.com --create
+*************************************************************************
+
+*************************************************************************
+//Userstamp ayarları
+composer require wildside/userstamps   proje içine yükle
+
+Model içinde kullan
+use Wildside\Userstamps\Userstamps;
+
+class Example extends Model {
+
+    use Userstamps;
+}
+
+veritabanında created_by updated_by deleted_by kolonları ekle
+
+migrasyon dosyasına ekle???
+$table -> unsignedInteger('created_by') -> nullable() -> default(null) -> after('created_at');
+$table -> unsignedInteger('updated_by') -> nullable() -> default(null) -> after('updated_at');
+$table -> unsignedInteger('deleted_by') -> nullable() -> default(null) -> after('deleted_at');
+*************************************************************************
+
+*************************************************************************
+//Laravel Dil ve zaman ayarı
+https://github.com/laravel-tr/Laravel5-lang  indir
+/resources/lang/tr/ şeklinde olacaktır.
+config/app.php
+
+'locale' => 'tr', 
+	
+'timezone' => 'Europe/Istanbul',
+*************************************************************************
+
+*************************************************************************
+//Voyager dil ayarı
+config/voyager.php
+
+         * Select default language
+
+        'default' => 'tr',
+
+        ],	
+*************************************************************************
+
+*************************************************************************
+//Resim dosyaları ayarı
+filesystem.php dosyasına aşağıdakini ekle
+
+        'voyager' => [
+            'driver' => 'local',
+            'root' => storage_path('app/public'),
+            'url' => env('APP_URL').'/storage/app/public',
+            'visibility' => 'public',
+        ],	
+		
+voyager.php dosyasında aşağıdakini değiştir		
+    'storage' => [
+        'disk' => 'voyager',
+    ],		
+*************************************************************************
+
+
+
+----------------------------------------------------------------------
+----------------------------------------------------------------------
+//Hosta attıktan sonra veritabanı ve dizin ayarı
+.env dosyası
+APP_URL=http://yonetim.euphoriaclub.com.tr
+
+
+DB_HOST=localhost
+
+DB_PORT=3306
+
+DB_DATABASE=u8037142_yonetim
+
+DB_USERNAME=u8037142_yonetim
+
+DB_PASSWORD=u8037142_yonetim
+----------------------------------------------------------------------
+//Hosta attıktan sonra dizin ayarı
+ana dizini proje klasörü oluşturup içine tüm dosyaları at
+domaine public klasörünün içerisindekileri at
+----------------------------------------------------------------------
+//Hosta attıktan sonra index.php dosyasını aşağıdaki gibi değiştir
+<?php
+
+define('LARAVEL_START', microtime(true));
+
+require __DIR__.'/source/vendor/autoload.php';
+
+$app = require_once __DIR__.'/source/bootstrap/app.php';
+
+$kernel = $app->make(Illuminate\Contracts\Http\Kernel::class);
+
+$response = $kernel->handle(
+    $request = Illuminate\Http\Request::capture()
+);
+
+$response->send();
+
+$kernel->terminate($request, $response);
+----------------------------------------------------------------------  
+vendor\tcg\voyager\resources\views\partials\app-footer.blade.php dosyasını düzenle
+<a href="http://zatrano.com" target="_blank">ZATRANO</a>
+
+
+
+//.htaccess ayarı
+
+<IfModule mod_rewrite.c>
+    <IfModule mod_negotiation.c>
+        Options -MultiViews -Indexes
+    </IfModule>
+
+	options -Indexes
+	
+	<Files .env>
+	order allow,deny
+	Deny from all
+	</Files>
+	
+    RewriteEngine On
+
+    # Handle Authorization Header
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+    # Redirect Trailing Slashes If Not A Folder...
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_URI} (.+)/$
+    RewriteRule ^ %1 [L,R=301]
+
+    # Handle Front Controller...
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule ^ index.php [L]
+</IfModule>
+
+
+//asset linkleri
+<script  src="{{ asset('assets/js/custom.js') }}"></script>
+//route linkleri
+Route::get('/', 'HomeController@index')->name('ana-sayfa');
+***************************************************************************
+Autoload
+composer.json dosyası
+composer dump-autoload
+    "autoload": {
+        "psr-4": {
+            "App\\": "app/"
+		},
+		"files": [
+			"app/Helpers/ActiveLink.php"
+			],
+***************************************************************************
+Active Menu
+
+Put this in your helper file:
+function set_active( $route ) {
+    if( is_array( $route ) ){
+        return in_array(Route::currentRouteName(), $route) ? 'active' : '';
+    }
+    return Route::currentRouteName() == $route ? 'active' : '';
+}
+
+Usage:
+<li class = "{{ set_active('admin/users') }}">
+    <a href="{{ url('/admin/users/') }}">Users</a>
+</li>
+
+Multi-level:
+<li class="{{ set_active(['admin/items', Request::is('admin/auction/*'), 'admin/something']) }}">
+    <ul>
+        <li class = "{{ set_active('admin/item') }}">
+            <a href="{{ url('/admin/item') }}">All</a>
+        </li>
+        <li class = "{{ set_active('admin/item/create') }}">
+            <a href="{{ URL::to('/admin/item/create') }}">Add New</a>
+        </li>
+        <li class = "{{ set_active('admin/something') }}">
+            <a href="{{ URL::to('/admin/something') }}">Something</a>
+        </li>
+    </ul>
+</li>
+
+
+Türkçe Tarih
+https://laravelturk.com/makale/laravel-turkce-tarih-sorunu-yerellestirme
+app/Providers/AppServiceProvider.php
+// app/Providers/AppServiceProvider.php :
+
+class AppServiceProvider extends ServiceProvider
+{
+    /**
+     * Bootstrap any application services.
+     *
+     * @return void
+     */
+    public function boot()
+    {
+
+        setLocale(LC_TIME, 'tr_TR');
+        \Carbon\Carbon::setLocale('tr');
+    }
+
+    /**
+     * Register any application services.
+     *
+     * @return void
+     */
+    public function register()
+    {
+        //
+    }
+}?
+
+Data Tables Yajra
+SoftDeletes
+UserStamps
+
+Kullanıcı Girişi ve Kullanıcı Kaydı Linkleri
+vendor\laravel\framework\src\Illuminate\Routing\Router.php
+        // Authentication Routes...
+        $this->get('giris', 'Auth\LoginController@showLoginForm')->name('login');
+        $this->post('giris', 'Auth\LoginController@login');
+        $this->post('cikis', 'Auth\LoginController@logout')->name('logout');
+
+        // Registration Routes...
+        if ($options['register'] ?? true) {
+            $this->get('kayit', 'Auth\RegisterController@showRegistrationForm')->name('register');
+            $this->post('kayit', 'Auth\RegisterController@register');
+        }
+
+Dosya Sistemi		
+filesystems.php
+        'public' => [
+            'driver' => 'local',
+            'root' => storage_path('app/public'),
+            'url' => env('APP_URL').'/source/storage/app/public',
+            'visibility' => 'public',
+        ],
+		
+Ayarları Sıfırlama
+/bootstrap/cache içindeki config.php nin adını config.php_old yap.
+
+web.php içine
+Route::get('/clear', function() {
+    Artisan::call('cache:clear');
+    Artisan::call('view:clear');
+    Artisan::call('route:clear');
+    Artisan::call('config:clear');
+    Artisan::call('config:cache');
+    echo "Cache temizlendi!";
+});
