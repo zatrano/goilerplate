@@ -1,0 +1,8 @@
+Ionic Kurulumu
+npm install -g ionic
+
+Yeni Proje
+ionic start myApp tabs blank sidemenu
+
+Proje Başlatma
+ionic serve
