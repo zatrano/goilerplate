@@ -90,9 +90,9 @@ class Example extends Model {
 veritabanında created_by updated_by deleted_by kolonları ekle
 
 migrasyon dosyasına ekle???
-$table -> unsignedBigInteger('created_by') -> nullable() -> after('created_at');
-$table -> unsignedBigInteger('updated_by') -> nullable() -> after('updated_at');
-$table -> unsignedBigInteger('deleted_by') -> nullable() -> after('deleted_at');
+$table->unsignedBigInteger('created_by') -> nullable() -> after('created_at');
+$table->unsignedBigInteger('updated_by') -> nullable() -> after('updated_at');
+$table->unsignedBigInteger('deleted_by') -> nullable() -> after('deleted_at');
 *************************************************************************
 
 *************************************************************************
