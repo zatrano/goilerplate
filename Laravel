@@ -23,6 +23,8 @@ public function boot()
 
 *************************************************************************
 //config/database.php ayarı
+'charset' => 'utf8',
+'collation' => 'utf8_general_ci',
 'engine' => 'InnoDB ROW_FORMAT=DYNAMIC',
 *************************************************************************
 
