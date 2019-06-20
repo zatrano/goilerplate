@@ -321,7 +321,7 @@ Dosya Sistemi
 filesystems.php
         'public' => [
             'driver' => 'local',
-            'root' => storage_path('app/public'),
+            'root' => public_path('storage'),
             'url' => env('APP_URL').'/source/storage/app/public',
             'visibility' => 'public',
         ],
