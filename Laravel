@@ -85,6 +85,7 @@ php artisan make:migration add_userstamps_to_users
     public function up()
     {
         Schema::table('users', function (Blueprint $table) {
+			$table->softDeletes();
 			$table->unsignedBigInteger('created_by')->nullable()->after('created_at');
 			$table->unsignedBigInteger('updated_by')->nullable()->after('updated_at');
 			$table->unsignedBigInteger('deleted_by')->nullable()->after('deleted_at');
