@@ -49,3 +49,6 @@ app.module.ts dosyasında providers içine
 { provide: 'apiUrl', useValue: 'https://www.zatrano.com/api'}
 servis dosyalarında constructer içine
 @Inject('apiUrl') private apiUrl,
+
+Uygulamayı build etme
+ng build --base-href ./
