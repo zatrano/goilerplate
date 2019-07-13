@@ -1,17 +1,17 @@
-*************************************************************************
+############################################################################
 //Laravel Kurulumu
 composer create-project --prefer-dist laravel/laravel proje
-*************************************************************************
+############################################################################
 
-*************************************************************************
+############################################################################
 //.env veritabanı ayarları
 APP_URL=http://localhost:8000
 DB_DATABASE=yonetim
 DB_USERNAME=root
 DB_PASSWORD=
-*************************************************************************
+############################################################################
 
-*************************************************************************
+############################################################################
 //app/Providers/AppServiceProvider.php ayarı
 use Illuminate\Support\Facades\Schema;
 
@@ -19,16 +19,16 @@ public function boot()
 {
     Schema::defaultStringLength(191);
 }
-*************************************************************************
+############################################################################
 
-*************************************************************************
+############################################################################
 //config/database.php ayarı
 'charset' => 'utf8',
 'collation' => 'utf8_general_ci',
 'engine' => 'InnoDB ROW_FORMAT=DYNAMIC',
-*************************************************************************
+############################################################################
 
-*************************************************************************
+############################################################################
 //User Model yerini değiştirme
 config/auth.php
 'providers' => [
@@ -55,29 +55,29 @@ Line 30:     'App\\User' => $baseDir . '/app/User.php',
 
 vendor\composer\autoload_static.php
 Line 444:         'App\\User' => __DIR__ . '/../..' . '/app/User.php',
-*************************************************************************
+############################################################################
 
-*************************************************************************
+############################################################################
 //kullanıcı girişleri oluşturma
 php artisan make:auth
 
 ***Controller daki user modelini unutma
 php artisan migrate
-*************************************************************************
+############################################################################
 
-*************************************************************************
+############################################################################
 //uygulama anahtarı oluşturma
 php artisan key:generate
-*************************************************************************
+############################################################################
 
-*************************************************************************
+############################################################################
 //Voyager Kurulumu
 composer require tcg/voyager
 php artisan voyager:install --with-dummy
 php artisan voyager:admin zatrano@zatrano.com --create
-*************************************************************************
+############################################################################
 
-*************************************************************************
+############################################################################
 //Userstamp ayarları
 composer require wildside/userstamps   proje içine yükle
 php artisan make:migration add_userstamps_to_users
@@ -107,9 +107,9 @@ $table->softDeletes();
 $table->unsignedBigInteger('created_by') -> nullable() -> after('created_at');
 $table->unsignedBigInteger('updated_by') -> nullable() -> after('updated_at');
 $table->unsignedBigInteger('deleted_by') -> nullable() -> after('deleted_at');
-*************************************************************************
+############################################################################
 
-*************************************************************************
+############################################################################
 //Laravel Dil ve zaman ayarı
 https://github.com/laravel-tr/Laravel5-lang  indir
 /resources/lang/tr/ şeklinde olacaktır.
@@ -118,9 +118,9 @@ config/app.php
 'locale' => 'tr', 
 	
 'timezone' => 'Europe/Istanbul',
-*************************************************************************
+############################################################################
 
-*************************************************************************
+############################################################################
 //Voyager dil ayarı
 config/voyager.php
 
@@ -129,9 +129,9 @@ config/voyager.php
         'default' => 'tr',
 
         ],	
-*************************************************************************
+############################################################################
 
-*************************************************************************
+############################################################################
 //Resim dosyaları ayarı
 filesystem.php dosyasına aşağıdakini ekle
 
@@ -146,12 +146,9 @@ voyager.php dosyasında aşağıdakini değiştir
     'storage' => [
         'disk' => 'voyager',
     ],		
-*************************************************************************
+############################################################################
 
-
-
-----------------------------------------------------------------------
-----------------------------------------------------------------------
+############################################################################
 //Hosta attıktan sonra veritabanı ve dizin ayarı
 .env dosyası
 APP_URL=http://yonetim.euphoriaclub.com.tr
@@ -166,11 +163,13 @@ DB_DATABASE=u8037142_yonetim
 DB_USERNAME=u8037142_yonetim
 
 DB_PASSWORD=u8037142_yonetim
-----------------------------------------------------------------------
+############################################################################
+
 //Hosta attıktan sonra dizin ayarı
 ana dizini proje klasörü oluşturup içine tüm dosyaları at
 domaine public klasörünün içerisindekileri at
-----------------------------------------------------------------------
+
+############################################################################
 //Hosta attıktan sonra index.php dosyasını aşağıdaki gibi değiştir
 <?php
 
@@ -194,9 +193,8 @@ vendor\tcg\voyager\resources\views\partials\app-footer.blade.php dosyasını dü
 <a href="http://zatrano.com" target="_blank">ZATRANO</a>
 
 
-
+############################################################################
 //.htaccess ayarı
-
 <IfModule mod_rewrite.c>
     <IfModule mod_negotiation.c>
         Options -MultiViews -Indexes
@@ -226,12 +224,12 @@ vendor\tcg\voyager\resources\views\partials\app-footer.blade.php dosyasını dü
     RewriteRule ^ index.php [L]
 </IfModule>
 
-
+############################################################################
 //asset linkleri
 <script  src="{{ asset('assets/js/custom.js') }}"></script>
 //route linkleri
 Route::get('/', 'HomeController@index')->name('ana-sayfa');
-***************************************************************************
+############################################################################**
 Autoload
 composer.json dosyası
 composer dump-autoload
@@ -242,7 +240,8 @@ composer dump-autoload
 		"files": [
 			"app/Helpers/ActiveLink.php"
 			],
-***************************************************************************
+
+############################################################################
 Active Menu
 
 Put this in your helper file:
@@ -273,7 +272,7 @@ Multi-level:
     </ul>
 </li>
 
-
+############################################################################
 Türkçe Tarih
 https://laravelturk.com/makale/laravel-turkce-tarih-sorunu-yerellestirme
 app/Providers/AppServiceProvider.php
@@ -303,10 +302,12 @@ class AppServiceProvider extends ServiceProvider
         //
     }
 }?
-
+############################################################################
+İlave paketler
 Data Tables Yajra
 SoftDeletes
 UserStamps
+############################################################################
 
 Kullanıcı Girişi ve Kullanıcı Kaydı Linkleri
 vendor\laravel\framework\src\Illuminate\Routing\Router.php
@@ -321,6 +322,7 @@ vendor\laravel\framework\src\Illuminate\Routing\Router.php
             $this->post('kayit', 'Auth\RegisterController@register');
         }
 
+############################################################################
 Dosya Sistemi		
 filesystems.php
         'public' => [
@@ -329,10 +331,11 @@ filesystems.php
             'url' => env('APP_URL').'/source/storage/app/public',
             'visibility' => 'public',
         ],
-		
+############################################################################		
 Ayarları Sıfırlama
 /bootstrap/cache içindeki config.php nin adını config.php_old yap.
 
+############################################################################
 web.php içine
 Route::get('/clear', function() {
     Artisan::call('cache:clear');
