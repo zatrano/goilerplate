@@ -104,9 +104,44 @@ veritabanında created_by updated_by deleted_by kolonları ekle
 
 migrasyon dosyasına ekle???
 $table->softDeletes();
-$table->unsignedBigInteger('created_by') -> nullable() -> after('created_at');
-$table->unsignedBigInteger('updated_by') -> nullable() -> after('updated_at');
-$table->unsignedBigInteger('deleted_by') -> nullable() -> after('deleted_at');
+$table->unsignedBigInteger('created_by')->nullable()->after('created_at');
+$table->unsignedBigInteger('updated_by')->nullable()->after('updated_at');
+$table->unsignedBigInteger('deleted_by')->nullable()->after('deleted_at');
+
+php artisan make:migration create_users_table
+php artisan make:migration create_users_table --create=users
+php artisan make:migration add_votes_to_users_table --table=users
+############################################################################
+
+############################################################################
+ÖRNEK MODEL DOSYASI
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Wildside\Userstamps\Userstamps;
+
+class Birim extends Model
+{
+    use SoftDeletes;
+    
+    use Userstamps; 
+    
+    protected $table = 'birimler';
+	
+	protected $fillable = [
+		'birim_adi'	
+	];	
+	
+	protected $dates = ['deleted_at'];
+	
+    public function kullanicilar()
+    {
+        return $this->hasMany('App\User');
+    }	
+}
 ############################################################################
 
 ############################################################################
@@ -345,3 +380,7 @@ Route::get('/clear', function() {
     Artisan::call('config:cache');
     echo "Cache temizlendi!";
 });
+############################################################################
+NULL Hatası
+UPDATE `odemeler` SET `deleted_at` = NULL, `deleted_by` = NULL;
+############################################################################
