@@ -332,6 +332,8 @@ class AppServiceProvider extends ServiceProvider
 Data Tables Yajra
 SoftDeletes
 UserStamps
+laravel-permission
+LaravelFullcalendar
 ############################################################################
 
 Kullanıcı Girişi ve Kullanıcı Kaydı Linkleri
