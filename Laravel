@@ -354,8 +354,8 @@ Dosya Sistemi
 filesystems.php
         'public' => [
             'driver' => 'local',
-            'root' => public_path('storage'),
-            'url' => env('APP_URL').'/source/storage/app/public',
+            'root' => storage_path('app/public'),
+            'url' => env('APP_URL').'source/storage/app/public',
             'visibility' => 'public',
         ],
 ############################################################################		
