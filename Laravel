@@ -1,6 +1,7 @@
 ############################################################################
 //Laravel Kurulumu
 composer create-project --prefer-dist laravel/laravel proje
+composer create-project --prefer-dist laravel/laravel PROJE "5.8.*"
 ############################################################################
 
 ############################################################################
