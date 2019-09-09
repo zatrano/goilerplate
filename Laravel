@@ -28,7 +28,9 @@ public function boot()
 'collation' => 'utf8_general_ci',
 'engine' => 'InnoDB ROW_FORMAT=DYNAMIC',
 ############################################################################
-
+php artisan make:controller SubeController --resource --model=Models\Sube
+php artisan make:migration create_students_table --create=students
+php artisan make:migration create_players_table
 ############################################################################
 //User Model yerini değiştirme
 config/auth.php
