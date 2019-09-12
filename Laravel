@@ -93,10 +93,7 @@ class Example extends Model {
     use Userstamps;
 }
 
-veritabanında created_by updated_by deleted_by kolonları ekle
-
 migrasyon dosyasına ekle???
-$table->softDeletes();
 $table->unsignedBigInteger('created_by')->nullable()->after('created_at');
 $table->unsignedBigInteger('updated_by')->nullable()->after('updated_at');
 $table->unsignedBigInteger('deleted_by')->nullable()->after('deleted_at');
@@ -118,9 +115,7 @@ use Wildside\Userstamps\Userstamps;
 
 class Birim extends Model
 {
-    use SoftDeletes;
-    
-    use Userstamps; 
+    use SoftDeletes, Userstamps;
     
     protected $table = 'birimler';
 	
@@ -146,6 +141,36 @@ config/app.php
 'locale' => 'tr', 
 	
 'timezone' => 'Europe/Istanbul',
+----------------------------------------
+Türkçe Tarih
+https://laravelturk.com/makale/laravel-turkce-tarih-sorunu-yerellestirme
+app/Providers/AppServiceProvider.php
+// app/Providers/AppServiceProvider.php :
+
+class AppServiceProvider extends ServiceProvider
+{
+    /**
+     * Bootstrap any application services.
+     *
+     * @return void
+     */
+    public function boot()
+    {
+
+        setLocale(LC_TIME, 'tr_TR');
+        \Carbon\Carbon::setLocale('tr');
+    }
+
+    /**
+     * Register any application services.
+     *
+     * @return void
+     */
+    public function register()
+    {
+        //
+    }
+}?
 ############################################################################
 
 ############################################################################
@@ -300,36 +325,6 @@ Multi-level:
     </ul>
 </li>
 
-############################################################################
-Türkçe Tarih
-https://laravelturk.com/makale/laravel-turkce-tarih-sorunu-yerellestirme
-app/Providers/AppServiceProvider.php
-// app/Providers/AppServiceProvider.php :
-
-class AppServiceProvider extends ServiceProvider
-{
-    /**
-     * Bootstrap any application services.
-     *
-     * @return void
-     */
-    public function boot()
-    {
-
-        setLocale(LC_TIME, 'tr_TR');
-        \Carbon\Carbon::setLocale('tr');
-    }
-
-    /**
-     * Register any application services.
-     *
-     * @return void
-     */
-    public function register()
-    {
-        //
-    }
-}?
 ############################################################################
 İlave paketler
 Data Tables Yajra
