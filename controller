@@ -1,0 +1,115 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Sube;
+use Illuminate\Http\Request;
+use DataTables;
+
+class SubeController extends Controller
+{
+    /**
+     * Display a listing of the resource.
+     *
+     * @return \Illuminate\Http\Response
+     */
+    public function index(Request $request)
+    {
+        if ($request->ajax()) {
+            $data = Sube::latest()->get();
+            return Datatables::of($data)
+                    ->addIndexColumn()
+                    ->addColumn('action', function ($id) {
+                        return '<a href="subeler/' . $id->id . '" class="btn btn-primary"><i class="material-icons">visibility</i></a>
+                                <a href="subeler/' . $id->id . '/edit" class="btn btn-primary"><i class="material-icons">edit</i></a>
+                                <button class="btn btn-delete btn-primary" data-remote="/subeler/' . $id->id . '"><i class="material-icons">delete</i></button>
+                          '; })
+                    ->rawColumns(['action'])
+                    ->make(true);
+        }
+        return view('subeler.index');
+    }
+
+    /**
+     * Show the form for creating a new resource.
+     *
+     * @return \Illuminate\Http\Response
+     */
+    public function create()
+    {
+        return view('subeler.create');
+    }
+
+    /**
+     * Store a newly created resource in storage.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\Response
+     */
+    public function store(Request $request)
+    {
+		$validatedData = $request->validate([
+			 'sube_adi' => 'required|max:255',
+		 ]);
+		 $sube = Sube::create($validatedData);
+
+		 return redirect('/subeler')->with('success', 'Şube Başarıyla Kaydedildi.');
+    }
+
+    /**
+     * Display the specified resource.
+     *
+     * @param  int  $id
+     * @return \Illuminate\Http\Response
+     */
+    public function show($id)
+    {
+		$sube = Sube::findOrFail($id);
+
+		return view('subeler.show', compact('sube'));
+    }
+
+    /**
+     * Show the form for editing the specified resource.
+     *
+     * @param  int  $id
+     * @return \Illuminate\Http\Response
+     */
+    public function edit($id)
+    {
+		$sube = Sube::findOrFail($id);
+
+		return view('subeler.edit', compact('sube'));
+    }
+
+    /**
+     * Update the specified resource in storage.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  int  $id
+     * @return \Illuminate\Http\Response
+     */
+    public function update(Request $request, $id)
+    {
+        $validatedData = $request->validate([
+            'sube_adi' => 'required|max:255',
+        ]);
+        Sube::whereId($id)->update($validatedData);
+
+        return redirect('/subeler')->with('success', 'Şube Başarıyla Güncellendi.');
+    }
+
+    /**
+     * Remove the specified resource from storage.
+     *
+     * @param  int  $id
+     * @return \Illuminate\Http\Response
+     */
+    public function destroy($id)
+    {
+        $sube = Sube::findOrFail($id);
+        $sube->delete();
+
+        return redirect('/subeler')->with('success', 'Şube Başarıyla Silindi.');
+    }
+}
