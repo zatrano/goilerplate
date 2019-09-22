@@ -392,3 +392,20 @@ composer require yajra/laravel-datatables-oracle:"~9.0"
 
 php artisan vendor:publish --provider="Yajra\DataTables\DataTablesServiceProvider"
 ############################################################################
+config/app.php
+Laravel Collective
+composer require "laravelcollective/html":"^5.8.1"
+
+Larave Role Yönetimi
+composer require spatie/laravel-permission
+
+'providers' => [
+	...
+	Spatie\Permission\PermissionServiceProvider::class,
+	Collective\Html\HtmlServiceProvider::class,
+],
+'aliases' => [
+	...
+	'Form' => Collective\Html\FormFacade::class,
+	'Html' => Collective\Html\HtmlFacade::class,
+],
