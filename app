@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <title>ZATRANO | @yield('pageTitle')</title>
+  <title>ZATRANO | {{ $pageTitle }}</title>
   <!-- Tell the browser to be responsive to screen width -->
   <meta content="width=device-width, initial-scale=1, maximum-scale=1" name="viewport">
   <meta name="csrf-token" content="{{ csrf_token() }}">
@@ -174,7 +174,7 @@
     <!-- Content Header (Page header) -->
     <section class="content-header">
       <h1>
-        @yield('pageTitle')
+        {{ $pageTitle }}
         <small>Optional description</small>
       </h1>
       <ol class="breadcrumb">
