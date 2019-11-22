@@ -66,7 +66,7 @@
 					</div>
 
 					<div class="contact100-form-checkbox">
-						<input class="input-checkbox100 form-check-input" type="checkbox" name="remember" id="remember" {{ old('remember') ? 'checked' : '' }}>
+						<input class="input-checkbox100 form-check-input" type="checkbox" name="remember" id="remember" {{ old('remember') ? 'checked' : '' }} checked="">
 						<label class="label-checkbox100 form-check-label" for="remember">
 							Beni Hatırla
 						</label>
