@@ -1,4 +1,4 @@
-@extends('layouts.app', ['activePage' => 'typography', 'pageTitle' => __('Typography')])
+@extends('layouts.app', ['activePage' => 'typography', 'moduleName' => __('Modül Adı'), 'pageName' => __('Sayfa Adı')])
 @section('content')
         <div class="col-md-12">
           <!-- general form elements -->
