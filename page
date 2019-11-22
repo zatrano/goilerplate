@@ -1,3 +1,4 @@
+@extends('layouts.app', ['activePage' => 'typography', 'titlePage' => __('Typography')])
 @section('content')
       <div class="row">
         <!-- column -->
@@ -30,3 +31,7 @@
       </div>
       <!-- /.row -->
 @endsection
+@push('css')
+@endpush
+@push('js')
+@endpush
