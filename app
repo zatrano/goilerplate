@@ -15,9 +15,6 @@
   @stack('css')
   <!-- Theme style -->
   <link rel="stylesheet" href="{{ asset('assets') }}/dist/css/AdminLTE.min.css">
-  <!-- AdminLTE Skins. We have chosen the skin-blue for this starter
-        page. However, you can choose any other skin. Make sure you
-        apply the skin class to the body tag so the changes take effect. -->
   <link rel="stylesheet" href="{{ asset('assets') }}/dist/css/skins/_all-skins.min.css">
 
   <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
