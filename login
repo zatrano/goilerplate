@@ -23,7 +23,7 @@
 	<div class="limiter">
 		<div class="container-login100" style="background-image: url('{{ asset('assets') }}/login/images/bg-01.jpg');">
 			<div class="wrap-login100">
-				<form class="login100-form validate-form" method="POST" action="{{ route('login">
+				<form class="login100-form validate-form" method="POST" action="{{ route('login') }}">
 				@csrf
 					<span class="login100-form-logo">
 						<i class="zmdi zmdi-shield-check"></i>
@@ -32,7 +32,7 @@
 						ZATRANO
 					</span>
 					<div class="wrap-input100">
-						<input id="email" type="email" class="input100 form-control @error('email') is-invalid @enderror" name="email" value="{{ old('email" required autocomplete="email" placeholder="{{ __('Kullanıcı Adı">
+						<input id="email" type="email" class="input100 form-control @error('email') is-invalid @enderror" name="email" value="{{ old('email') }}" required autocomplete="email" placeholder="{{ __('Kullanıcı Adı') }}">
 						@error('email')
 							<span class="invalid-feedback" role="alert">
 								<strong>{{ $message }}</strong>
@@ -41,7 +41,7 @@
 						<span class="focus-input100" data-placeholder="&#xf207;"></span>
 					</div>
 					<div class="wrap-input100">
-						<input id="password" type="password" class="input100 form-control @error('password') is-invalid @enderror" name="password" required autocomplete="current-password" placeholder="{{ __('Password">
+						<input id="password" type="password" class="input100 form-control @error('password') is-invalid @enderror" name="password" required autocomplete="current-password" placeholder="{{ __('Password') }}">
 						@error('password')
 							<span class="invalid-feedback" role="alert">
 								<strong>{{ $message }}</strong>
