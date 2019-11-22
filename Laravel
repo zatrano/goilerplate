@@ -1,7 +1,8 @@
 ############################################################################
 //Laravel Kurulumu
 composer create-project --prefer-dist laravel/laravel proje
-composer create-project --prefer-dist laravel/laravel PROJE "5.8.*"
+composer require laravel/ui
+php artisan ui vue --auth
 ############################################################################
 
 ############################################################################
