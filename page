@@ -23,7 +23,6 @@
             </form>
           </div>
           <!-- /.box -->
-
         </div>
 @endsection
 @push('css')
