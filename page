@@ -1,6 +1,5 @@
 @extends('layouts.app', ['activePage' => 'typography', 'pageTitle' => __('Typography')])
 @section('content')
-        <!-- column -->
         <div class="col-md-12">
           <!-- general form elements -->
           <div class="box box-danger">
@@ -26,7 +25,6 @@
           <!-- /.box -->
 
         </div>
-        <!--/.col -->
 @endsection
 @push('css')
 @endpush
