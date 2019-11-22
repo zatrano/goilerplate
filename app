@@ -197,7 +197,10 @@ desired effect
     <!-- Main content -->
     <section class="content container-fluid">
 
+      <div class="row">
 @yield('content')
+      </div>
+      <!-- /.row -->
 
     </section>
     <!-- /.content -->
