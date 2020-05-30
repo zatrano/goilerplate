@@ -79,6 +79,23 @@ config/app.php
 'timezone' => 'Europe/Istanbul',
 **********************************************************************************
 
+***Application Date Format***
+config/app.php
+		/*
+		|--------------------------------------------------------------------------
+		| Application Date Format
+		|--------------------------------------------------------------------------
+		|
+		| Here you may specify the default date format for your application, which
+		| will be used with date and date-time functions.
+		|
+		*/
+
+		'date_format' => 'd.m.Y',
+
+		'date_format_js' => 'dd.mm.yyyy',
+**********************************************************************************
+
 ***SoftDeletes***
 Model dosyası
 use Illuminate\Database\Eloquent\SoftDeletes;
