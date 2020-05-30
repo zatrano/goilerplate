@@ -111,11 +111,20 @@ php artisan make:migration create_users_table --create=users
 php artisan make:migration add_votes_to_users_table --table=users
 **********************************************************************************
 
+***Durum Kontrol***
+routes/web.php
+Route::group(['middleware' => ['auth', 'checkStatus']], function () {
+
+app\Http\Kernel.php
+protected $routeMiddleware = [
+        'checkStatus' => \App\Http\Middleware\CheckStatus::class,
+**********************************************************************************
+
 ***Users Migration***
 database\migrations\create_users_table.php
 
             $table->id();
-	    $table->boolean('status')->default(0)->nullable();
+						$table->boolean('status')->default(0)->nullable();
             $table->timestamps();
             $table->softDeletes();
             $table->unsignedBigInteger('sube_id')->default('1');
@@ -154,6 +163,12 @@ config/app.php
 ];
 php artisan vendor:publish --provider="Spatie\Permission\PermissionServiceProvider" --tag="migrations"
 php artisan vendor:publish --provider="Spatie\Permission\PermissionServiceProvider" --tag="config"
+
+app\Http\Kernel.php
+protected $routeMiddleware = [
+        'role' => \Spatie\Permission\Middlewares\RoleMiddleware::class,
+        'permission' => \Spatie\Permission\Middlewares\PermissionMiddleware::class,
+        'role_or_permission' => \Spatie\Permission\Middlewares\RoleOrPermissionMiddleware::class,
 **********************************************************************************
 
 ***Laravel Collective Html***
