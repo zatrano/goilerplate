@@ -121,7 +121,7 @@ database\migrations\create_users_table.php
             $table->foreign('sube_id')->references('id')->on('subeler');
             $table->unsignedBigInteger('departman_id')->default('1');
             $table->foreign('departman_id')->references('id')->on('departmanlar');
-            $table->enum('status', ['Aktif', 'Pasif'])->default('Pasif')->nullable();
+						$table->boolean('status')->default(0)->nullable();
             $table->string('avatar')->default('avatar.jpg')->nullable();
             $table->string('name');
             $table->string('email')->unique();
