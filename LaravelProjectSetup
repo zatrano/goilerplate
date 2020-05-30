@@ -83,7 +83,7 @@ config/app.php
 Model dosyası
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class Example extends Model {
+class User extends Model {
 
     use SoftDeletes;
 }
@@ -169,10 +169,26 @@ protected $routeMiddleware = [
         'role' => \Spatie\Permission\Middlewares\RoleMiddleware::class,
         'permission' => \Spatie\Permission\Middlewares\PermissionMiddleware::class,
         'role_or_permission' => \Spatie\Permission\Middlewares\RoleOrPermissionMiddleware::class,
+
+app/Models/User.php
+use Spatie\Permission\Traits\HasRoles;
+
+class User extends Model {
+
+    use HasRoles;
+}
 **********************************************************************************
 
 ***Laravel Collective Html***
 composer require laravelcollective/html
+**********************************************************************************
+
+***Otomasyon Composer***
+app/providers/AppServiceProvider.php
+
+use App\Http\View\Composers\OtomasyonComposer;
+
+view()->composer('*', OtomasyonComposer::class);
 **********************************************************************************
 
 ***Kullanıcı Girişi ve Kullanıcı Kaydı Linkleri***
