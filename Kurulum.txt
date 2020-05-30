@@ -1,0 +1,212 @@
+***Laravel Setup***
+laravel new ZATRANO --auth
+**********************************************************************************
+
+***.env***
+DB_DATABASE=veritabanı ismi
+DB_USERNAME=root
+DB_PASSWORD=
+**********************************************************************************
+
+***app/Providers/AppServiceProvider.php***
+use Illuminate\Support\Facades\Schema;
+
+public function boot()
+{
+		Schema::defaultStringLength(191);
+		setLocale(LC_TIME, 'tr_TR');
+		\Carbon\Carbon::setLocale('tr');
+}
+**********************************************************************************
+
+***Türkçe Dil Dosyası***
+https://github.com/laravel-tr/Laravel7-lang
+resources\lang\tr tr.json
+**********************************************************************************
+
+***config/database.php***
+'charset' => 'utf8',
+'collation' => 'utf8_general_ci',
+'engine' => 'InnoDB ROW_FORMAT=DYNAMIC',
+**********************************************************************************
+
+***User Model***
+app/Models/User
+User.php
+namespace App\Models;
+config/auth.php
+auth.php
+    'providers' => [
+        'users' => [
+            'driver' => 'eloquent',
+            'model' => App\Models\User::class,
+        ],
+database/factories/UserFactory.php
+use App\Models\User;
+vendor\composer\autoload_classmap.php
+'App\\Models\\User' => $baseDir . '/app/Models/User.php',
+vendor\composer\autoload_static.php
+'App\\Models\\User' => __DIR__ . '/../..' . '/app/Models/User.php',
+app\Http\Controllers\Auth\RegisterController.php
+use App\Models\User;
+**********************************************************************************
+
+***Dosya Sistemi***		
+config/filesystems.php
+'default' => env('FILESYSTEM_DRIVER', 'zatrano'),
+        'zatrano' => [
+            'driver' => 'local',
+            'root' => public_path('assets'),
+            'url' => env('APP_URL').'/public',
+            'visibility' => 'public',
+        ],
+**********************************************************************************
+
+***web.php***
+Route::get('/clear', function() {
+    Artisan::call('cache:clear');
+    Artisan::call('view:clear');
+    Artisan::call('route:clear');
+    Artisan::call('config:clear');
+    Artisan::call('config:cache');
+    echo "Cache Temizlendi!";
+});
+**********************************************************************************
+
+***Dil Ayarları***
+config/app.php
+'locale' => 'tr',
+'timezone' => 'Europe/Istanbul',
+**********************************************************************************
+
+***SoftDeletes***
+Model dosyası
+use Illuminate\Database\Eloquent\SoftDeletes;
+
+class Example extends Model {
+
+    use SoftDeletes;
+}
+**********************************************************************************
+
+***Userstamp***
+composer require wildside/userstamps
+
+Model dosyası
+use Wildside\Userstamps\Userstamps;
+
+class User extends Model {
+
+    use Userstamps;
+}
+
+Migrasyon dosyasına ekle
+$table->unsignedBigInteger('created_by')->nullable()->after('created_at');
+$table->unsignedBigInteger('updated_by')->nullable()->after('updated_at');
+$table->unsignedBigInteger('deleted_by')->nullable()->after('deleted_at');
+
+php artisan make:migration add_userstamps_to_users
+php artisan make:migration create_users_table
+php artisan make:migration create_users_table --create=users
+php artisan make:migration add_votes_to_users_table --table=users
+**********************************************************************************
+
+***DataTables***
+composer require yajra/laravel-datatables-oracle:"~9.0"
+config/app.php
+'providers' => [
+    ...,
+    Yajra\DataTables\DataTablesServiceProvider::class,
+]
+
+'aliases' => [
+    ...,
+    'DataTables' => Yajra\DataTables\Facades\DataTables::class,
+]
+php artisan vendor:publish --provider="Yajra\DataTables\DataTablesServiceProvider"
+**********************************************************************************
+
+***Laravel Permission***
+composer require spatie/laravel-permission
+config/app.php
+'providers' => [
+    // ...
+    Spatie\Permission\PermissionServiceProvider::class,
+];
+php artisan vendor:publish --provider="Spatie\Permission\PermissionServiceProvider" --tag="migrations"
+php artisan vendor:publish --provider="Spatie\Permission\PermissionServiceProvider" --tag="config"
+**********************************************************************************
+
+***Laravel Collective Html***
+composer require laravelcollective/html
+**********************************************************************************
+
+***Kullanıcı Girişi ve Kullanıcı Kaydı Linkleri***
+vendor\laravel\framework\src\Illuminate\Routing\Router.php
+        // Authentication Routes...
+        $this->get('giris', 'Auth\LoginController@showLoginForm')->name('login');
+        $this->post('giris', 'Auth\LoginController@login');
+        $this->post('cikis', 'Auth\LoginController@logout')->name('logout');
+
+        // Registration Routes...
+        if ($options['register'] ?? true) {
+            $this->get('kayit', 'Auth\RegisterController@showRegistrationForm')->name('register');
+            $this->post('kayit', 'Auth\RegisterController@register');
+        }
+**********************************************************************************
+
+***Host Ayarları***
+Ana dizin içerisine Source adında bir klasör oluştur. Public klasörü haricindeki tüm dosyaları bu klasöre taşı.
+Public klasörü içerisindeki dosyaları ana dizine taşı ve Public klasörünü sil.
+
+index.php
+require __DIR__.'/source/vendor/autoload.php';
+$app = require_once __DIR__.'/source/bootstrap/app.php';
+
+.env
+APP_URL=https://zatrano.com
+DB_HOST=localhost
+DB_PORT=3306
+DB_DATABASE=u8037142_zatrano
+DB_USERNAME=u8037142_zatrano
+DB_PASSWORD=u8037142_zatrano
+**********************************************************************************
+
+***.htaccess***
+<IfModule mod_rewrite.c>
+    <IfModule mod_negotiation.c>
+        Options -MultiViews -Indexes
+    </IfModule>
+
+	options -Indexes
+	
+	<Files .env>
+	order allow,deny
+	Deny from all
+	</Files>
+	
+    RewriteEngine On
+
+    # Handle Authorization Header
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+    # Redirect Trailing Slashes If Not A Folder...
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_URI} (.+)/$
+    RewriteRule ^ %1 [L,R=301]
+
+    # Handle Front Controller...
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule ^ index.php [L]
+</IfModule>
+**********************************************************************************
+
+***Cache Ayarlarını Sıfırlama***
+bootstrap/cache config.php => config.php_old
+**********************************************************************************
+
+***NULL Hatası Çözümü***
+UPDATE `odemeler` SET `deleted_at` = NULL, `deleted_by` = NULL;
+**********************************************************************************
