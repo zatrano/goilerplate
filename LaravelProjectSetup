@@ -115,13 +115,13 @@ php artisan make:migration add_votes_to_users_table --table=users
 database\migrations\create_users_table.php
 
             $table->id();
+	    $table->boolean('status')->default(0)->nullable();
             $table->timestamps();
             $table->softDeletes();
             $table->unsignedBigInteger('sube_id')->default('1');
             $table->foreign('sube_id')->references('id')->on('subeler');
             $table->unsignedBigInteger('departman_id')->default('1');
             $table->foreign('departman_id')->references('id')->on('departmanlar');
-						$table->boolean('status')->default(0)->nullable();
             $table->string('avatar')->default('avatar.jpg')->nullable();
             $table->string('name');
             $table->string('email')->unique();
