@@ -275,6 +275,10 @@ DB_PASSWORD=u8037142_zatrano
 </IfModule>
 **********************************************************************************
 
+App\Providers\AppServiceProvider::boot() içerisine:
+URL::forceScheme('https');
+**********************************************************************************
+
 ***Cache Ayarlarını Sıfırlama***
 bootstrap/cache config.php => config.php_old
 **********************************************************************************
