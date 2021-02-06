@@ -286,3 +286,11 @@ bootstrap/cache config.php => config.php_old
 ***NULL Hatası Çözümü***
 UPDATE `odemeler` SET `deleted_at` = NULL, `deleted_by` = NULL;
 **********************************************************************************
+
+***Paylaşımlı Hosting .htaccess dosyası ana dizine eklenecek***
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^$ public/index.php [L]
+    RewriteRule ^((?!public/).*)$ public/$1 [L,NC]
+</IfModule>
+**********************************************************************************
