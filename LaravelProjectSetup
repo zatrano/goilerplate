@@ -294,3 +294,9 @@ UPDATE `odemeler` SET `deleted_at` = NULL, `deleted_by` = NULL;
     RewriteRule ^((?!public/).*)$ public/$1 [L,NC]
 </IfModule>
 **********************************************************************************
+
+***.htaccess https zorlaması***
+    RewriteCond %{HTTP:X-Forwarded-Proto} !https
+    RewriteCond %{HTTPS} off
+    RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+**********************************************************************************
