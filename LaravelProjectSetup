@@ -35,27 +35,6 @@ resources\lang\tr tr.json
 'engine' => 'InnoDB ROW_FORMAT=DYNAMIC',
 **********************************************************************************
 
-***User Model***
-app/Models/User
-User.php
-namespace App\Models;
-config/auth.php
-auth.php
-    'providers' => [
-        'users' => [
-            'driver' => 'eloquent',
-            'model' => App\Models\User::class,
-        ],
-database/factories/UserFactory.php
-use App\Models\User;
-vendor\composer\autoload_classmap.php
-'App\\Models\\User' => $baseDir . '/app/Models/User.php',
-vendor\composer\autoload_static.php
-'App\\Models\\User' => __DIR__ . '/../..' . '/app/Models/User.php',
-app\Http\Controllers\Auth\RegisterController.php
-use App\Models\User;
-**********************************************************************************
-
 ***Dosya Sistemi***		
 config/filesystems.php
 'default' => env('FILESYSTEM_DRIVER', 'zatrano'),
