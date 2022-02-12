@@ -102,14 +102,9 @@ class User extends Model {
 }
 
 Migrasyon dosyasına ekle
-$table->unsignedBigInteger('created_by')->nullable()->after('created_at');
-$table->unsignedBigInteger('updated_by')->nullable()->after('updated_at');
-$table->unsignedBigInteger('deleted_by')->nullable()->after('deleted_at');
-
-php artisan make:migration add_userstamps_to_users
-php artisan make:migration create_users_table
-php artisan make:migration create_users_table --create=users
-php artisan make:migration add_votes_to_users_table --table=users
+$table->unsignedBigInteger('created_by')->nullable();
+$table->unsignedBigInteger('updated_by')->nullable();
+$table->unsignedBigInteger('deleted_by')->nullable();
 **********************************************************************************
 
 ***Durum Kontrol***
@@ -125,7 +120,7 @@ protected $routeMiddleware = [
 database\migrations\create_users_table.php
 
             $table->id();
-						$table->boolean('status')->default(0)->nullable();
+	    $table->boolean('status')->default(0)->nullable();
             $table->timestamps();
             $table->softDeletes();
             $table->unsignedBigInteger('sube_id')->default('1');
