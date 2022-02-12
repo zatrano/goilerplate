@@ -2,6 +2,11 @@
 laravel new ZATRANO --auth
 **********************************************************************************
 
+***Auth***
+composer require laravel/ui
+php artisan ui:auth
+**********************************************************************************
+
 ***.env***
 DB_DATABASE=veritabanı ismi
 DB_USERNAME=root
