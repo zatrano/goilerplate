@@ -1,7 +1,3 @@
-***Laravel Setup***
-laravel new ZATRANO --auth
-**********************************************************************************
-
 ***Auth***
 composer require laravel/ui
 php artisan ui:auth
