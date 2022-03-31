@@ -153,8 +153,9 @@ config/app.php
     // ...
     Spatie\Permission\PermissionServiceProvider::class,
 ];
-php artisan vendor:publish --provider="Spatie\Permission\PermissionServiceProvider" --tag="migrations"
-php artisan vendor:publish --provider="Spatie\Permission\PermissionServiceProvider" --tag="config"
+php artisan vendor:publish --provider="Spatie\Permission\PermissionServiceProvider"
+
+php artisan optimize:clear
 
 app\Http\Kernel.php
 protected $routeMiddleware = [
