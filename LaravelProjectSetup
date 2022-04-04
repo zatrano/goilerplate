@@ -31,6 +31,48 @@ resources\lang\tr tr.json
 'engine' => 'InnoDB ROW_FORMAT=DYNAMIC',
 **********************************************************************************
 
+**********************************************************************************
+***Helper Dosyası***
+<?php
+
+namespace App\Providers;
+
+use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Facades\Schema;
+
+class AppServiceProvider extends ServiceProvider
+{
+    /**
+     * Register any application services.
+     *
+     * @return void
+     */
+    public function register()
+    {
+        $this->loadHelpers();
+    }
+
+    /**
+     * Bootstrap any application services.
+     *
+     * @return void
+     */
+    public function boot()
+    {
+        Schema::defaultStringLength(191);
+        setLocale(LC_TIME, 'tr_TR');
+        \Carbon\Carbon::setLocale('tr');
+    }
+
+    protected function loadHelpers()
+    {
+        foreach (glob(app_path('Helpers') . '/*.php') as $file) {
+            require_once $file;
+        }
+    }
+}
+**********************************************************************************
+
 ***Dosya Sistemi***		
 config/filesystems.php
 'default' => env('FILESYSTEM_DRIVER', 'zatrano'),
