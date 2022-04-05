@@ -213,9 +213,9 @@ config/constants.php
 <?php 
 
 return [
-	'ACTIVE' => 1,
+    'ACTIVE' => 1,
     'PASSIVE' => 0,
-	'GUARD_NAME' => 'web',
+    'GUARD_NAME' => 'web',
     'ORDER_BY' => 'desc',
     'PER_PAGE' => 20,
     'SORT_BY' => 'id',
