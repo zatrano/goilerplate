@@ -1,0 +1,1996 @@
+1-) composer create-project laravel/laravel app
+2-) composer require laravel/ui
+3-) php artisan ui:auth
+4-) composer require wildside/userstamps
+5-) composer require laravelcollective/html
+6-) composer require spatie/laravel-permission
+
+**************************************************
+config/app.php
+
+'providers' => [
+    // ...
+    Spatie\Permission\PermissionServiceProvider::class,
+];
+
+php artisan vendor:publish --provider="Spatie\Permission\PermissionServiceProvider"
+
+php artisan optimize:clear
+**************************************************
+
+**************************************************
+app/Providers/AppServiceProvider.php
+
+<?php
+
+namespace App\Providers;
+
+use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Facades\Schema;
+
+class AppServiceProvider extends ServiceProvider
+{
+    /**
+     * Register any application services.
+     *
+     * @return void
+     */
+    public function register()
+    {
+        $this->loadHelpers();
+    }
+
+    /**
+     * Bootstrap any application services.
+     *
+     * @return void
+     */
+    public function boot()
+    {
+        Schema::defaultStringLength(255);
+        setLocale(LC_TIME, 'tr_TR');
+        \Carbon\Carbon::setLocale('tr');
+    }
+
+    protected function loadHelpers()
+    {
+        foreach (glob(app_path('Helpers') . '/*.php') as $file) {
+            require_once $file;
+        }
+    }
+}
+**************************************************
+
+**************************************************
+Model dosyasına ekle
+
+use App\Services\PrivateKeyService
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Wildside\Userstamps\Userstamps;
+use Spatie\Permission\Traits\HasRoles;
+
+use SoftDeletes, Userstamps, HasRoles;
+
+protected $table = 'users';
+
+protected static function boot() {
+    parent::boot();
+
+    static::creating(function ($user) {
+        $user->private_key = resolve(PrivateKeyService::class)->generatePrivateKey(User::class);
+    });
+}
+
+public function scopePrivateKey($query, $private_key)
+{
+    return $query->where('private_key', $private_key); 
+}
+
+
+**************************************************
+
+**************************************************
+Migrasyon dosyasına ekle
+
+$table->string('private_key')->unique();
+$table->timestamps();
+$table->softDeletes();
+$table->unsignedBigInteger('created_by')->nullable();
+$table->unsignedBigInteger('updated_by')->nullable();
+$table->unsignedBigInteger('deleted_by')->nullable();
+$table->boolean('is_active')->default(config('constants.ACTIVE'));
+**************************************************
+
+**************************************************
+Dosya Sistemi Ayarları
+
+config/filesystems.php
+
+'default' => env('FILESYSTEM_DRIVER', 'zatrano'),
+
+'zatrano' => [
+    'driver' => 'local',
+    'root' => public_path('assets'),
+    'url' => env('APP_URL').'/public',
+    'visibility' => 'public',
+],
+**************************************************
+
+**************************************************
+Veritabanı Ayarları
+
+config/database.php
+
+'engine' => 'InnoDB ROW_FORMAT=DYNAMIC',
+**************************************************
+
+**************************************************
+Tarih ve Dil Ayarları
+
+config/app.php
+
+'locale' => 'tr',
+
+'timezone' => 'Europe/Istanbul',
+
+/*
+|--------------------------------------------------------------------------
+| Application Date Format
+|--------------------------------------------------------------------------
+|
+| Here you may specify the default date format for your application, which
+| will be used with date and date-time functions.
+|
+*/
+
+'date_format' => 'd.m.Y',
+
+'date_format_js' => 'dd.mm.yyyy',
+**************************************************
+
+**************************************************
+Helpers/helper.php
+
+<?php
+
+//Aktif menü
+if (! function_exists('activeMenu')) {
+    function activeMenu($url)
+    {
+        return request()->is($url) ? 'active' : null;
+    }
+}
+
+//IP adresi alma
+if (! function_exists('getIPAddress')) {
+    function getIPAddress()
+    {
+        if (array_key_exists('HTTP_CLIENT_IP', $_SERVER)) {
+            $ipAddress = $_SERVER['HTTP_CLIENT_IP'];
+        } elseif (array_key_exists('HTTP_X_FORWARDED_FOR', $_SERVER)) {
+            $ipAddress = $_SERVER['HTTP_X_FORWARDED_FOR'];
+        }
+
+        return $ipAddress ?? null;
+    }
+}
+
+//Telefon formatlama
+if (! function_exists('formatTelephone')) {
+    function formatTelephone($telephone) {
+        $telephone  = preg_replace("/[^0-9]/", "", $telephone);
+        $first = substr("$telephone", 0, 1);
+        if ($first == "0") {
+            $telephone = substr($telephone, 1);
+        }
+    
+        $tr = substr("$telephone",0,2);
+
+        if ($tr != "90") {
+            $formattedTelephone = "Gecersiz: Ülke kodu TR degil.";
+        } else {
+            $no = substr($telephone, 2);
+
+            if(substr("$no", 0, 1) == "0") {
+                $no = substr($no, 1);
+            }
+    
+            if(strlen($no) != "10") {
+                $formattedTelephone = "Gecersiz: TR telefon formatina uygun degil (901112223344)"; }
+            else {
+                $formattedTelephone = "+$tr$no";
+            }
+        }
+    
+        return $formattedTelephone;
+    }
+}
+**************************************************
+
+**************************************************
+config/constants.php
+
+<?php 
+
+return [
+	'ACTIVE' => 1,
+    'PASSIVE' => 0,
+	'GUARD_NAME' => 'web',
+    'ORDER_BY' => 'desc',
+    'PER_PAGE' => 20,
+    'SORT_BY' => 'id',
+    'PRIVATE_KEY' => 20,
+    'FILTER_ORDER_BY' => [
+        'asc' => 'A-Z',
+        'desc' => 'Z-A'
+    ],
+    'FILTER_PER_PAGE' => [
+        '20' => '20',
+        '50' => '50',
+        '100' => '100'
+    ],
+];
+**************************************************
+
+**************************************************
+Services/PrivateKeyService.php
+
+<?php
+
+namespace App\Services;
+
+use Illuminate\Support\Str;
+
+class PrivateKeyService
+{
+    // Check private key
+    public static function checkPrivateKey($model, string $private_key): bool
+    {
+        $private_keys = $model::pluck('private_key');
+
+        if (collect($private_keys)->contains($private_key)) {
+            $privateKeyStatus = True;
+        } else {
+            $privateKeyStatus = False;
+        }
+
+        return $privateKeyStatus;
+    }
+
+    // Generate private key
+    public static function generatePrivateKey($model): string
+    {
+        $private_key = Str::random(config('constants.PRIVATE_KEY'));
+        $checkPrivateKey = PrivateKeyService::checkPrivateKey($model, $private_key);
+
+        while ($checkPrivateKey == True)
+        {
+            $private_key = Str::random(config('constants.PRIVATE_KEY'));
+            $checkPrivateKey = PrivateKeyService::checkPrivateKey($model, $private_key);
+        }
+
+        return $private_key;
+    }
+}
+**************************************************
+
+**************************************************
+routes/web.php
+
+/*Site Start*/
+Route::get('/', [App\Http\Controllers\Site\HomeController::class, 'index'])->name('site.home');
+Route::get('/iletisim', [App\Http\Controllers\Site\ContactController::class, 'index'])->name('site.contact');
+Route::get('/hakkımızda', [App\Http\Controllers\Site\AboutController::class, 'index'])->name('site.about');
+/*Site End*/
+
+/*System Start*/
+Route::group(['middleware' => ['auth', 'is_active']], function () {
+
+    /*Dashboard Start*/
+    Route::group(['middleware' => ['is_employee']], function () {
+
+        Route::group(['prefix' => 'dashboard'], function () {
+            Route::get('/', [App\Http\Controllers\Dashboard\HomeController::class, 'index'])->name('dashboard.home');
+            Route::get('profile', [App\Http\Controllers\Dashboard\ProfileController::class, 'index'])->name('dashboard.profile');
+			Route::put('profile', [App\Http\Controllers\Dashboard\ProfileController::class, 'update'])->name('dashboard.update.profile');
+			Route::put('profile/password', [App\Http\Controllers\Dashboard\ProfileController::class, 'password'])->name('dashboard.update.password');
+			Route::put('profile/avatar', [App\Http\Controllers\Dashboard\ProfileController::class, 'avatar'])->name('dashboard.update.avatar');
+            Route::resources([
+                'users' => App\Http\Controllers\Dashboard\ResourceControllers\UserController::class,
+                'roles' => App\Http\Controllers\Dashboard\ResourceControllers\RoleController::class,
+                'permissions' => App\Http\Controllers\Dashboard\ResourceControllers\PermissionController::class,
+                'branches' => App\Http\Controllers\Dashboard\ResourceControllers\BranchController::class,
+                'departments' => App\Http\Controllers\Dashboard\ResourceControllers\DepartmentController::class,
+                'positions' => App\Http\Controllers\Dashboard\ResourceControllers\PositionController::class,
+                'real-estates' => App\Http\Controllers\Dashboard\ResourceControllers\RealEstateController::class,
+                'portfolios' => App\Http\Controllers\Dashboard\ResourceControllers\PortfolioController::class,
+                'activities' => App\Http\Controllers\Dashboard\ResourceControllers\ActivityController::class,
+                'promise-sales' => App\Http\Controllers\Dashboard\ResourceControllers\PromiseSaleController::class,
+                'competitor-markets' => App\Http\Controllers\Dashboard\ResourceControllers\CompetitorMarketController::class,
+                'sold-records' => App\Http\Controllers\Dashboard\ResourceControllers\SoldRecordController::class,
+                'sale-records' => App\Http\Controllers\Dashboard\ResourceControllers\SaleRecordController::class,
+                'trainings' => App\Http\Controllers\Dashboard\ResourceControllers\TrainingController::class,
+                'marketing-plans' => App\Http\Controllers\Dashboard\ResourceControllers\MarketingPlanController::class,
+                'report-marketing-plans' => App\Http\Controllers\Dashboard\ResourceControllers\ReportMarketingPlanController::class,
+                'marketing-service-reports' => App\Http\Controllers\Dashboard\ResourceControllers\MarketingServiceReportController::class,
+                'customers' => App\Http\Controllers\Dashboard\ResourceControllers\CustomerController::class,
+                'backdown-coins' => App\Http\Controllers\Dashboard\ResourceControllers\BackdownCoinController::class,
+                'applications' => App\Http\Controllers\Dashboard\ResourceControllers\ApplicationController::class,
+            ]);
+        });
+    });
+    /*Dashboard End*/
+
+    /*Audit Start*/
+    Route::group(['middleware' => ['is_audit']], function () {
+
+        Route::group(['prefix' => 'audit'], function () {
+            Route::get('/', [App\Http\Controllers\Audit\HomeController::class, 'index'])->name('audit.home');
+        });
+    });
+    /*Audit End*/
+
+    /*Customer Start*/
+    Route::group(['middleware' => ['is_customer']], function () {
+
+        Route::group(['prefix' => 'customer'], function () {
+            Route::get('/', [App\Http\Controllers\Customer\HomeController::class, 'index'])->name('customer.home');
+        });
+    });
+    /*Customer End*/
+
+});
+/*System End*/
+
+Auth::routes();
+**************************************************
+
+**************************************************
+app/Middleware/IsActive.php
+
+<?php
+
+namespace App\Http\Middleware;
+
+use Closure;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+
+class IsActive
+{
+    /**
+     * Handle an incoming request.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  \Closure  $next
+     * @return mixed
+     */
+    public function handle(Request $request, Closure $next)
+    {
+        $response = $next($request);
+
+        if (Auth::check() && Auth::user()->is_active != 1) {
+
+            Auth::logout();
+
+            return redirect('/login')->withErrors('HESABINIZ PASİF DURUMDADIR!');
+        }
+
+        return $response;
+    }
+}
+
+**************************************************
+
+**************************************************
+app/Middleware/IsAudit.php
+
+<?php
+
+namespace App\Http\Middleware;
+
+use Closure;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+
+class IsAudit
+{
+    /**
+     * Handle an incoming request.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  \Closure  $next
+     * @return mixed
+     */
+    public function handle(Request $request, Closure $next)
+    {
+        $response = $next($request);
+
+        if (Auth::check() && Auth::user()->type != 'Audit') {
+
+            Auth::logout();
+
+            return redirect('/login')->withErrors('YETKİSİZ GİRİŞ DENEMESİ!');
+        }
+
+        return $response;
+    }
+}
+
+**************************************************
+
+**************************************************
+app/Middleware/IsCustomer.php
+
+<?php
+
+namespace App\Http\Middleware;
+
+use Closure;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+
+class IsCustomer
+{
+    /**
+     * Handle an incoming request.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  \Closure  $next
+     * @return mixed
+     */
+    public function handle(Request $request, Closure $next)
+    {
+        $response = $next($request);
+
+        if (Auth::check() && Auth::user()->type != 'Customer') {
+
+            Auth::logout();
+
+            return redirect('/login')->withErrors('YETKİSİZ GİRİŞ DENEMESİ!');
+        }
+
+        return $response;
+    }
+}
+
+**************************************************
+
+**************************************************
+app/Middleware/IsEmployee.php
+
+<?php
+
+namespace App\Http\Middleware;
+
+use Closure;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+
+class IsEmployee
+{
+    /**
+     * Handle an incoming request.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  \Closure  $next
+     * @return mixed
+     */
+    public function handle(Request $request, Closure $next)
+    {
+        $response = $next($request);
+
+        if (Auth::check() && Auth::user()->type != 'Employee') {
+
+            Auth::logout();
+
+            return redirect('/login')->withErrors('YETKİSİZ GİRİŞ DENEMESİ!');
+        }
+
+        return $response;
+    }
+}
+
+**************************************************
+
+**************************************************
+app/Middleware/RedirectIfAuthenticated.php
+
+<?php
+
+namespace App\Http\Middleware;
+
+use App\Providers\RouteServiceProvider;
+use Closure;
+use Illuminate\Support\Facades\Auth;
+
+class RedirectIfAuthenticated
+{
+    /**
+     * Handle an incoming request.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  \Closure  $next
+     * @param  string[]|null  ...$guards
+     * @return mixed
+     */
+    public function handle($request, Closure $next, ...$guards)
+    {
+        $guards = empty($guards) ? [null] : $guards;
+
+        foreach ($guards as $guard) {
+            if (Auth::guard($guard)->check()) {
+
+                $type = Auth::user()->type;
+
+                switch ($type) {
+                    case 'Employee':
+                        return redirect()->route('dashboard.home');
+                        break;
+
+                    case 'Audit':
+                        return redirect()->route('audit.home');
+                        break;
+                        
+                    case 'Customer':
+                        return redirect()->route('customer.home');
+                        break;
+                }
+            }
+        }
+
+        return $next($request);
+    }
+}
+
+**************************************************
+
+**************************************************
+app/Http/Controllers/Auth/LoginController.php
+
+<?php
+
+namespace App\Http\Controllers\Auth;
+
+use App\Http\Controllers\Controller;
+use App\Providers\RouteServiceProvider;
+use Illuminate\Foundation\Auth\AuthenticatesUsers;
+use Illuminate\Support\Facades\Auth;
+
+class LoginController extends Controller
+{
+    /*
+    |--------------------------------------------------------------------------
+    | Login Controller
+    |--------------------------------------------------------------------------
+    |
+    | This controller handles authenticating users for the application and
+    | redirecting them to your home screen. The controller uses a trait
+    | to conveniently provide its functionality to your applications.
+    |
+    */
+
+    use AuthenticatesUsers;
+
+    /**
+     * Where to redirect users after login.
+     *
+     * @var string
+     */
+
+    public function redirectTo()
+    {
+        $type = Auth::user()->type;
+
+        switch ($type) {
+
+            case 'Employee':
+                return 'dashboard';
+                break;
+
+            case 'Audit':
+                return 'audit';
+                break;
+
+            case 'Customer':
+                return 'customer';
+                break;
+        }
+    }
+
+    /**
+     * Create a new controller instance.
+     *
+     * @return void
+     */
+    public function __construct()
+    {
+        $this->middleware('guest')->except('logout');
+    }
+}
+
+**************************************************
+
+**************************************************
+app/Http/Kernel.php
+
+protected $routeMiddleware = [
+    'auth' => \App\Http\Middleware\Authenticate::class,
+    'auth.basic' => \Illuminate\Auth\Middleware\AuthenticateWithBasicAuth::class,
+    'cache.headers' => \Illuminate\Http\Middleware\SetCacheHeaders::class,
+    'can' => \Illuminate\Auth\Middleware\Authorize::class,
+    'guest' => \App\Http\Middleware\RedirectIfAuthenticated::class,
+    'password.confirm' => \Illuminate\Auth\Middleware\RequirePassword::class,
+    'signed' => \Illuminate\Routing\Middleware\ValidateSignature::class,
+    'throttle' => \Illuminate\Routing\Middleware\ThrottleRequests::class,
+    'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
+    'role' => \Spatie\Permission\Middlewares\RoleMiddleware::class,
+    'permission' => \Spatie\Permission\Middlewares\PermissionMiddleware::class,
+    'role_or_permission' => \Spatie\Permission\Middlewares\RoleOrPermissionMiddleware::class,
+    'is_active' => \App\Http\Middleware\IsActive::class,
+    'is_employee' => \App\Http\Middleware\IsEmployee::class,
+    'is_audit' => \App\Http\Middleware\IsAudit::class,
+    'is_customer' => \App\Http\Middleware\IsCustomer::class,
+];
+**************************************************
+
+**************************************************
+database/seeders/DatabaseSeeder.php
+
+<?php
+
+namespace Database\Seeders;
+
+use Illuminate\Database\Seeder;
+
+class DatabaseSeeder extends Seeder
+{
+    /**
+     * Seed the application's database.
+     *
+     * @return void
+     */
+    public function run()
+    {
+        // User::factory(10)->create();
+        $this->call(SystemSeeder::class);
+    }
+}
+**************************************************
+
+**************************************************
+database/seeders/SystemmSeeder.php
+
+<?php
+
+namespace Database\Seeders;
+
+use Illuminate\Database\Seeder;
+use App\Models\Permission;
+use App\Models\Role;
+use App\Models\Branch;
+use App\Models\Department;
+use App\Models\Position;
+use App\Models\User;
+use App\Models\City;
+use App\Models\District;
+
+class SystemSeeder extends Seeder
+{
+    /**
+     * Run the database seeds.
+     *
+     * @return void
+     */
+    public function run()
+    {
+        $permissions = [
+            [
+             'name' => 'YETKİ LİSTELE',
+             'guard_name' => 'web',
+             'group_name' => 'YETKİ',
+            ],
+            [
+             'name' => 'YETKİ OLUŞTUR',
+             'guard_name' => 'web',
+             'group_name' => 'YETKİ',
+            ],
+            [
+             'name' => 'YETKİ İNCELE',
+             'guard_name' => 'web',
+             'group_name' => 'YETKİ',
+            ],
+            [
+             'name' => 'YETKİ DÜZENLE',
+             'guard_name' => 'web',
+             'group_name' => 'YETKİ',
+            ],
+            [
+             'name' => 'YETKİ SİL',
+             'guard_name' => 'web',
+             'group_name' => 'YETKİ',
+            ],
+            [
+             'name' => 'ROL LİSTELE',
+             'guard_name' => 'web',
+             'group_name' => 'ROL',
+            ],
+            [
+             'name' => 'ROL OLUŞTUR',
+             'guard_name' => 'web',
+             'group_name' => 'ROL',
+            ],
+            [
+             'name' => 'ROL İNCELE',
+             'guard_name' => 'web',
+             'group_name' => 'ROL',
+            ],
+            [
+             'name' => 'ROL DÜZENLE',
+             'guard_name' => 'web',
+             'group_name' => 'ROL',
+            ],
+            [
+             'name' => 'ROL SİL',
+             'guard_name' => 'web',
+             'group_name' => 'ROL',
+            ],
+            [
+             'name' => 'ŞUBE LİSTELE',
+             'guard_name' => 'web',
+             'group_name' => 'ŞUBE',
+            ],
+            [
+             'name' => 'ŞUBE OLUŞTUR',
+             'guard_name' => 'web',
+             'group_name' => 'ŞUBE',
+            ],
+            [
+             'name' => 'ŞUBE İNCELE',
+             'guard_name' => 'web',
+             'group_name' => 'ŞUBE',
+            ],
+            [
+             'name' => 'ŞUBE DÜZENLE',
+             'guard_name' => 'web',
+             'group_name' => 'KULLANICI',
+            ],
+            [
+             'name' => 'ŞUBE SİL',
+             'guard_name' => 'web',
+             'group_name' => 'KULLANICI',
+            ],
+            [
+             'name' => 'DEPARTMAN LİSTELE',
+             'guard_name' => 'web',
+             'group_name' => 'DEPARTMAN',
+            ],
+            [
+             'name' => 'DEPARTMAN OLUŞTUR',
+             'guard_name' => 'web',
+             'group_name' => 'DEPARTMAN',
+            ],
+            [
+             'name' => 'DEPARTMAN İNCELE',
+             'guard_name' => 'web',
+             'group_name' => 'DEPARTMAN',
+            ],
+            [
+             'name' => 'DEPARTMAN DÜZENLE',
+             'guard_name' => 'web',
+             'group_name' => 'DEPARTMAN',
+            ],
+            [
+             'name' => 'DEPARTMAN SİL',
+             'guard_name' => 'web',
+             'group_name' => 'DEPARTMAN',
+            ],
+            [
+             'name' => 'POZİSYON LİSTELE',
+             'guard_name' => 'web',
+             'group_name' => 'POZİSYON',
+            ],
+            [
+             'name' => 'POZİSYON OLUŞTUR',
+             'guard_name' => 'web',
+             'group_name' => 'POZİSYON',
+            ],
+            [
+             'name' => 'POZİSYON İNCELE',
+             'guard_name' => 'web',
+             'group_name' => 'POZİSYON',
+            ],
+            [
+             'name' => 'POZİSYON DÜZENLE',
+             'guard_name' => 'web',
+             'group_name' => 'POZİSYON',
+            ],
+            [
+             'name' => 'POZİSYON SİL',
+             'guard_name' => 'web',
+             'group_name' => 'POZİSYON',
+            ],
+            [
+             'name' => 'KULLANICI LİSTELE',
+             'guard_name' => 'web',
+             'group_name' => 'KULLANICI',
+            ],
+            [
+             'name' => 'KULLANICI OLUŞTUR',
+             'guard_name' => 'web',
+             'group_name' => 'KULLANICI',
+            ],
+            [
+             'name' => 'KULLANICI İNCELE',
+             'guard_name' => 'web',
+             'group_name' => 'KULLANICI',
+            ],
+            [
+             'name' => 'KULLANICI DÜZENLE',
+             'guard_name' => 'web',
+             'group_name' => 'KULLANICI',
+            ],
+            [
+             'name' => 'KULLANICI SİL',
+             'guard_name' => 'web',
+             'group_name' => 'KULLANICI',
+            ]
+        ];
+ 
+        foreach ($permissions as $permission) {
+            Permission::create($permission);
+        }
+
+        $role = Role::create(['name' => 'Sistem Yöneticisi']);
+        
+        $permissions = Permission::pluck('id', 'id')->all();
+        
+        $role->syncPermissions($permissions);
+
+        Branch::create(['is_active' => '1', 'name' => 'Merkez']);
+
+        Department::create(['is_active' => '1', 'name' => 'Bilgi Teknolojileri']);
+
+        Position::create(['is_active' => '1', 'department_id' => '1', 'name' => 'Sistem Yöneticisi']);
+
+        $user = User::create([
+            'is_active' => config('constants.ACTIVE'),
+			'type' => 'Employee',
+            'name' => 'Sistem',
+            'surname' => 'Yöneticisi',
+            'image' => 'profile.jpg',
+            'telephone' => '(555) 555 55 55',
+            'email' => 'mail@mail.com',
+            'email_verified_at' => now(),
+            'password' => bcrypt('PASSWORD'),
+            'branch_id' => '1',
+            'department_id' => '1',
+            'position_id' => '1',
+            'created_at' => now(),
+            'updated_at' => now()
+        ]);
+        
+        $user->assignRole([$role->id]);
+
+        $cities = [
+			'Adana',
+			'Adıyaman',
+			'Afyon',
+			'Ağrı',
+			'Amasya',
+			'Ankara',
+			'Antalya',
+			'Artvin',
+			'Aydın',
+			'Balıkesir',
+			'Bilecik',
+			'Bingöl',
+			'Bitlis',
+			'Bolu',
+			'Burdur',
+			'Bursa',
+			'Çanakkale',
+			'Çankırı',
+			'Çorum',
+			'Denizli',
+			'Diyarbakır',
+			'Edirne',
+			'Elazığ',
+			'Erzincan',
+			'Erzurum',
+			'Eskişehir',
+			'Gaziantep',
+			'Giresun',
+			'Gümüşhane',
+			'Hakkâri',
+			'Hatay',
+			'Isparta',
+			'Mersin',
+			'İstanbul',
+			'İzmir',
+			'Kars',
+			'Kastamonu',
+			'Kayseri',
+			'Kırklareli',
+			'Kırşehir',
+			'Kocaeli',
+			'Konya',
+			'Kütahya',
+			'Malatya',
+			'Manisa',
+			'Kahramanmaraş',
+			'Mardin',
+			'Muğla',
+			'Muş',
+			'Nevşehir',
+			'Niğde',
+			'Ordu',
+			'Rize',
+			'Sakarya',
+			'Samsun',
+			'Siirt',
+			'Sinop',
+			'Sivas',
+			'Tekirdağ',
+			'Tokat',
+			'Trabzon',
+			'Tunceli',
+			'Şanlıurfa',
+			'Uşak',
+			'Van',
+			'Yozgat',
+			'Zonguldak',
+			'Aksaray',
+			'Bayburt',
+			'Karaman',
+			'Kırıkkale',
+			'Batman',
+			'Şırnak',
+			'Bartın',
+			'Ardahan',
+			'Iğdır',
+			'Yalova',
+			'Karabük',
+			'Kilis',
+			'Osmaniye',
+			'Düzce',
+        ];
+
+        foreach ($cities as $city) {
+            City::create(['name' => $city]);
+        }
+
+        $districts = [
+			['city_id'=>'1','name'=>'Seyhan'],
+			['city_id'=>'1','name'=>'Ceyhan'],
+			['city_id'=>'1','name'=>'Feke'],
+			['city_id'=>'1','name'=>'Karaisalı'],
+			['city_id'=>'1','name'=>'Karataş'],
+			['city_id'=>'1','name'=>'Kozan'],
+			['city_id'=>'1','name'=>'Pozantı'],
+			['city_id'=>'1','name'=>'Saimbeyli'],
+			['city_id'=>'1','name'=>'Tufanbeyli'],
+			['city_id'=>'1','name'=>'Yumurtalık'],
+			['city_id'=>'1','name'=>'Yüreğir'],
+			['city_id'=>'1','name'=>'Aladağ'],
+			['city_id'=>'1','name'=>'İmamoğlu'],
+			['city_id'=>'1','name'=>'Sarıçam'],
+			['city_id'=>'1','name'=>'Çukurova'],
+			['city_id'=>'2','name'=>'Adıyaman Merkez'],
+			['city_id'=>'2','name'=>'Besni'],
+			['city_id'=>'2','name'=>'Çelikhan'],
+			['city_id'=>'2','name'=>'Gerger'],
+			['city_id'=>'2','name'=>'Gölbaşı / Adıyaman'],
+			['city_id'=>'2','name'=>'Kahta'],
+			['city_id'=>'2','name'=>'Samsat'],
+			['city_id'=>'2','name'=>'Sincik'],
+			['city_id'=>'2','name'=>'Tut'],
+			['city_id'=>'3','name'=>'Afyonkarahisar Merkez'],
+			['city_id'=>'3','name'=>'Bolvadin'],
+			['city_id'=>'3','name'=>'Çay'],
+			['city_id'=>'3','name'=>'Dazkırı'],
+			['city_id'=>'3','name'=>'Dinar'],
+			['city_id'=>'3','name'=>'Emirdağ'],
+			['city_id'=>'3','name'=>'İhsaniye'],
+			['city_id'=>'3','name'=>'Sandıklı'],
+			['city_id'=>'3','name'=>'Sinanpaşa'],
+			['city_id'=>'3','name'=>'Sultandağı'],
+			['city_id'=>'3','name'=>'Şuhut'],
+			['city_id'=>'3','name'=>'Başmakçı'],
+			['city_id'=>'3','name'=>'Bayat / Afyonkarahisar'],
+			['city_id'=>'3','name'=>'İscehisar'],
+			['city_id'=>'3','name'=>'Çobanlar'],
+			['city_id'=>'3','name'=>'Evciler'],
+			['city_id'=>'3','name'=>'Hocalar'],
+			['city_id'=>'3','name'=>'Kızılören'],
+			['city_id'=>'4','name'=>'Ağrı Merkez'],
+			['city_id'=>'4','name'=>'Diyadin'],
+			['city_id'=>'4','name'=>'Doğubayazıt'],
+			['city_id'=>'4','name'=>'Eleşkirt'],
+			['city_id'=>'4','name'=>'Hamur'],
+			['city_id'=>'4','name'=>'Patnos'],
+			['city_id'=>'4','name'=>'Taşlıçay'],
+			['city_id'=>'4','name'=>'Tutak'],
+			['city_id'=>'5','name'=>'Amasya Merkez'],
+			['city_id'=>'5','name'=>'Göynücek'],
+			['city_id'=>'5','name'=>'Gümüşhacıköy'],
+			['city_id'=>'5','name'=>'Merzifon'],
+			['city_id'=>'5','name'=>'Suluova'],
+			['city_id'=>'5','name'=>'Taşova'],
+			['city_id'=>'5','name'=>'Hamamözü'],
+			['city_id'=>'6','name'=>'Altındağ'],
+			['city_id'=>'6','name'=>'Ayaş'],
+			['city_id'=>'6','name'=>'Bala'],
+			['city_id'=>'6','name'=>'Beypazarı'],
+			['city_id'=>'6','name'=>'Çamlıdere'],
+			['city_id'=>'6','name'=>'Çankaya'],
+			['city_id'=>'6','name'=>'Çubuk'],
+			['city_id'=>'6','name'=>'Elmadağ'],
+			['city_id'=>'6','name'=>'Güdül'],
+			['city_id'=>'6','name'=>'Haymana'],
+			['city_id'=>'6','name'=>'Kalecik'],
+			['city_id'=>'6','name'=>'Kızılcahamam'],
+			['city_id'=>'6','name'=>'Nallıhan'],
+			['city_id'=>'6','name'=>'Polatlı'],
+			['city_id'=>'6','name'=>'Şereflikoçhisar'],
+			['city_id'=>'6','name'=>'Yenimahalle'],
+			['city_id'=>'6','name'=>'Gölbaşı / Ankara'],
+			['city_id'=>'6','name'=>'Keçiören'],
+			['city_id'=>'6','name'=>'Mamak'],
+			['city_id'=>'6','name'=>'Sincan'],
+			['city_id'=>'6','name'=>'Kazan'],
+			['city_id'=>'6','name'=>'Akyurt'],
+			['city_id'=>'6','name'=>'Etimesgut'],
+			['city_id'=>'6','name'=>'Evren'],
+			['city_id'=>'6','name'=>'Pursaklar'],
+			['city_id'=>'7','name'=>'Akseki'],
+			['city_id'=>'7','name'=>'Alanya'],
+			['city_id'=>'7','name'=>'Elmalı'],
+			['city_id'=>'7','name'=>'Finike'],
+			['city_id'=>'7','name'=>'Gazipaşa'],
+			['city_id'=>'7','name'=>'Gündoğmuş'],
+			['city_id'=>'7','name'=>'Kaş'],
+			['city_id'=>'7','name'=>'Korkuteli'],
+			['city_id'=>'7','name'=>'Kumluca'],
+			['city_id'=>'7','name'=>'Manavgat'],
+			['city_id'=>'7','name'=>'Serik'],
+			['city_id'=>'7','name'=>'Demre'],
+			['city_id'=>'7','name'=>'İbradı'],
+			['city_id'=>'7','name'=>'Kemer / Antalya'],
+			['city_id'=>'7','name'=>'Aksu / Antalya'],
+			['city_id'=>'7','name'=>'Döşemealtı'],
+			['city_id'=>'7','name'=>'Kepez'],
+			['city_id'=>'7','name'=>'Konyaaltı'],
+			['city_id'=>'7','name'=>'Muratpaşa'],
+			['city_id'=>'8','name'=>'Ardanuç'],
+			['city_id'=>'8','name'=>'Arhavi'],
+			['city_id'=>'8','name'=>'Artvin Merkez'],
+			['city_id'=>'8','name'=>'Borçka'],
+			['city_id'=>'8','name'=>'Hopa'],
+			['city_id'=>'8','name'=>'Şavşat'],
+			['city_id'=>'8','name'=>'Yusufeli'],
+			['city_id'=>'8','name'=>'Murgul'],
+			['city_id'=>'9','name'=>'Bozdoğan'],
+			['city_id'=>'9','name'=>'Çine'],
+			['city_id'=>'9','name'=>'Germencik'],
+			['city_id'=>'9','name'=>'Karacasu'],
+			['city_id'=>'9','name'=>'Koçarlı'],
+			['city_id'=>'9','name'=>'Kuşadası'],
+			['city_id'=>'9','name'=>'Kuyucak'],
+			['city_id'=>'9','name'=>'Nazilli'],
+			['city_id'=>'9','name'=>'Söke'],
+			['city_id'=>'9','name'=>'Sultanhisar'],
+			['city_id'=>'9','name'=>'Yenipazar / Aydın'],
+			['city_id'=>'9','name'=>'Buharkent'],
+			['city_id'=>'9','name'=>'İncirliova'],
+			['city_id'=>'9','name'=>'Karpuzlu'],
+			['city_id'=>'9','name'=>'Köşk'],
+			['city_id'=>'9','name'=>'Didim'],
+			['city_id'=>'9','name'=>'Efeler'],
+			['city_id'=>'10','name'=>'Ayvalık'],
+			['city_id'=>'10','name'=>'Balya'],
+			['city_id'=>'10','name'=>'Bandırma'],
+			['city_id'=>'10','name'=>'Bigadiç'],
+			['city_id'=>'10','name'=>'Burhaniye'],
+			['city_id'=>'10','name'=>'Dursunbey'],
+			['city_id'=>'10','name'=>'Edremit / Balıkesir'],
+			['city_id'=>'10','name'=>'Erdek'],
+			['city_id'=>'10','name'=>'Gönen / Balıkesir'],
+			['city_id'=>'10','name'=>'Havran'],
+			['city_id'=>'10','name'=>'İvrindi'],
+			['city_id'=>'10','name'=>'Kepsut'],
+			['city_id'=>'10','name'=>'Manyas'],
+			['city_id'=>'10','name'=>'Savaştepe'],
+			['city_id'=>'10','name'=>'Sındırgı'],
+			['city_id'=>'10','name'=>'Susurluk'],
+			['city_id'=>'10','name'=>'Marmara'],
+			['city_id'=>'10','name'=>'Gömeç'],
+			['city_id'=>'10','name'=>'Altıeylül'],
+			['city_id'=>'10','name'=>'Karesi'],
+			['city_id'=>'11','name'=>'Bilecik Merkez'],
+			['city_id'=>'11','name'=>'Bozüyük'],
+			['city_id'=>'11','name'=>'Gölpazarı'],
+			['city_id'=>'11','name'=>'Osmaneli'],
+			['city_id'=>'11','name'=>'Pazaryeri'],
+			['city_id'=>'11','name'=>'Söğüt'],
+			['city_id'=>'11','name'=>'Yenipazar / Bilecik'],
+			['city_id'=>'11','name'=>'İnhisar'],
+			['city_id'=>'12','name'=>'Bingöl Merkez'],
+			['city_id'=>'12','name'=>'Genç'],
+			['city_id'=>'12','name'=>'Karlıova'],
+			['city_id'=>'12','name'=>'Kiğı'],
+			['city_id'=>'12','name'=>'Solhan'],
+			['city_id'=>'12','name'=>'Adaklı'],
+			['city_id'=>'12','name'=>'Yayladere'],
+			['city_id'=>'12','name'=>'Yedisu'],
+			['city_id'=>'13','name'=>'Adilcevaz'],
+			['city_id'=>'13','name'=>'Ahlat'],
+			['city_id'=>'13','name'=>'Bitlis Merkez'],
+			['city_id'=>'13','name'=>'Hizan'],
+			['city_id'=>'13','name'=>'Mutki'],
+			['city_id'=>'13','name'=>'Tatvan'],
+			['city_id'=>'13','name'=>'Güroymak'],
+			['city_id'=>'14','name'=>'Bolu Merkez'],
+			['city_id'=>'14','name'=>'Gerede'],
+			['city_id'=>'14','name'=>'Göynük'],
+			['city_id'=>'14','name'=>'Kıbrıscık'],
+			['city_id'=>'14','name'=>'Mengen'],
+			['city_id'=>'14','name'=>'Mudurnu'],
+			['city_id'=>'14','name'=>'Seben'],
+			['city_id'=>'14','name'=>'Dörtdivan'],
+			['city_id'=>'14','name'=>'Yeniçağa'],
+			['city_id'=>'15','name'=>'Ağlasun'],
+			['city_id'=>'15','name'=>'Bucak'],
+			['city_id'=>'15','name'=>'Burdur Merkez'],
+			['city_id'=>'15','name'=>'Gölhisar'],
+			['city_id'=>'15','name'=>'Tefenni'],
+			['city_id'=>'15','name'=>'Yeşilova'],
+			['city_id'=>'15','name'=>'Karamanlı'],
+			['city_id'=>'15','name'=>'Kemer / Burdur'],
+			['city_id'=>'15','name'=>'Altınyayla / Burdur'],
+			['city_id'=>'15','name'=>'Çavdır'],
+			['city_id'=>'15','name'=>'Çeltikçi'],
+			['city_id'=>'16','name'=>'Gemlik'],
+			['city_id'=>'16','name'=>'İnegöl'],
+			['city_id'=>'16','name'=>'İznik'],
+			['city_id'=>'16','name'=>'Karacabey'],
+			['city_id'=>'16','name'=>'Keles'],
+			['city_id'=>'16','name'=>'Mudanya'],
+			['city_id'=>'16','name'=>'Mustafakemalpaşa'],
+			['city_id'=>'16','name'=>'Orhaneli'],
+			['city_id'=>'16','name'=>'Orhangazi'],
+			['city_id'=>'16','name'=>'Yenişehir / Bursa'],
+			['city_id'=>'16','name'=>'Büyükorhan'],
+			['city_id'=>'16','name'=>'Harmancık'],
+			['city_id'=>'16','name'=>'Nilüfer'],
+			['city_id'=>'16','name'=>'Osmangazi'],
+			['city_id'=>'16','name'=>'Yıldırım'],
+			['city_id'=>'16','name'=>'Gürsu'],
+			['city_id'=>'16','name'=>'Kestel'],
+			['city_id'=>'17','name'=>'Ayvacık / Çanakkale'],
+			['city_id'=>'17','name'=>'Bayramiç'],
+			['city_id'=>'17','name'=>'Biga'],
+			['city_id'=>'17','name'=>'Bozcaada'],
+			['city_id'=>'17','name'=>'Çan'],
+			['city_id'=>'17','name'=>'Çanakkale Merkez'],
+			['city_id'=>'17','name'=>'Eceabat'],
+			['city_id'=>'17','name'=>'Ezine'],
+			['city_id'=>'17','name'=>'Gelibolu'],
+			['city_id'=>'17','name'=>'Gökçeada'],
+			['city_id'=>'17','name'=>'Lapseki'],
+			['city_id'=>'17','name'=>'Yenice / Çanakkale'],
+			['city_id'=>'18','name'=>'Çankırı Merkez'],
+			['city_id'=>'18','name'=>'Çerkeş'],
+			['city_id'=>'18','name'=>'Eldivan'],
+			['city_id'=>'18','name'=>'Ilgaz'],
+			['city_id'=>'18','name'=>'Kurşunlu'],
+			['city_id'=>'18','name'=>'Orta'],
+			['city_id'=>'18','name'=>'Şabanözü'],
+			['city_id'=>'18','name'=>'Yapraklı'],
+			['city_id'=>'18','name'=>'Atkaracalar'],
+			['city_id'=>'18','name'=>'Kızılırmak'],
+			['city_id'=>'18','name'=>'Bayramören'],
+			['city_id'=>'18','name'=>'Korgun'],
+			['city_id'=>'19','name'=>'Alaca'],
+			['city_id'=>'19','name'=>'Bayat / Çorum'],
+			['city_id'=>'19','name'=>'Çorum Merkez'],
+			['city_id'=>'19','name'=>'İskilip'],
+			['city_id'=>'19','name'=>'Kargı'],
+			['city_id'=>'19','name'=>'Mecitözü'],
+			['city_id'=>'19','name'=>'Ortaköy / Çorum'],
+			['city_id'=>'19','name'=>'Osmancık'],
+			['city_id'=>'19','name'=>'Sungurlu'],
+			['city_id'=>'19','name'=>'Boğazkale'],
+			['city_id'=>'19','name'=>'Uğurludağ'],
+			['city_id'=>'19','name'=>'Dodurga'],
+			['city_id'=>'19','name'=>'Laçin'],
+			['city_id'=>'19','name'=>'Oğuzlar'],
+			['city_id'=>'20','name'=>'Acıpayam'],
+			['city_id'=>'20','name'=>'Buldan'],
+			['city_id'=>'20','name'=>'Çal'],
+			['city_id'=>'20','name'=>'Çameli'],
+			['city_id'=>'20','name'=>'Çardak'],
+			['city_id'=>'20','name'=>'Çivril'],
+			['city_id'=>'20','name'=>'Güney'],
+			['city_id'=>'20','name'=>'Kale / Denizli'],
+			['city_id'=>'20','name'=>'Sarayköy'],
+			['city_id'=>'20','name'=>'Tavas'],
+			['city_id'=>'20','name'=>'Babadağ'],
+			['city_id'=>'20','name'=>'Bekilli'],
+			['city_id'=>'20','name'=>'Honaz'],
+			['city_id'=>'20','name'=>'Serinhisar'],
+			['city_id'=>'20','name'=>'Pamukkale'],
+			['city_id'=>'20','name'=>'Baklan'],
+			['city_id'=>'20','name'=>'Beyağaç'],
+			['city_id'=>'20','name'=>'Bozkurt / Denizli'],
+			['city_id'=>'20','name'=>'Merkezefendi'],
+			['city_id'=>'21','name'=>'Bismil'],
+			['city_id'=>'21','name'=>'Çermik'],
+			['city_id'=>'21','name'=>'Çınar'],
+			['city_id'=>'21','name'=>'Çüngüş'],
+			['city_id'=>'21','name'=>'Dicle'],
+			['city_id'=>'21','name'=>'Ergani'],
+			['city_id'=>'21','name'=>'Hani'],
+			['city_id'=>'21','name'=>'Hazro'],
+			['city_id'=>'21','name'=>'Kulp'],
+			['city_id'=>'21','name'=>'Lice'],
+			['city_id'=>'21','name'=>'Silvan'],
+			['city_id'=>'21','name'=>'Eğil'],
+			['city_id'=>'21','name'=>'Kocaköy'],
+			['city_id'=>'21','name'=>'Bağlar'],
+			['city_id'=>'21','name'=>'Kayapınar'],
+			['city_id'=>'21','name'=>'Sur'],
+			['city_id'=>'21','name'=>'Yenişehir / Diyarbakır'],
+			['city_id'=>'22','name'=>'Edirne Merkez'],
+			['city_id'=>'22','name'=>'Enez'],
+			['city_id'=>'22','name'=>'Havsa'],
+			['city_id'=>'22','name'=>'İpsala'],
+			['city_id'=>'22','name'=>'Keşan'],
+			['city_id'=>'22','name'=>'Lalapaşa'],
+			['city_id'=>'22','name'=>'Meriç'],
+			['city_id'=>'22','name'=>'Uzunköprü'],
+			['city_id'=>'22','name'=>'Süloğlu'],
+			['city_id'=>'23','name'=>'Ağın'],
+			['city_id'=>'23','name'=>'Baskil'],
+			['city_id'=>'23','name'=>'Elazığ Merkez'],
+			['city_id'=>'23','name'=>'Karakoçan'],
+			['city_id'=>'23','name'=>'Keban'],
+			['city_id'=>'23','name'=>'Maden'],
+			['city_id'=>'23','name'=>'Palu'],
+			['city_id'=>'23','name'=>'Sivrice'],
+			['city_id'=>'23','name'=>'Arıcak'],
+			['city_id'=>'23','name'=>'Kovancılar'],
+			['city_id'=>'23','name'=>'Alacakaya'],
+			['city_id'=>'24','name'=>'Çayırlı'],
+			['city_id'=>'24','name'=>'Erzincan Merkez'],
+			['city_id'=>'24','name'=>'İliç'],
+			['city_id'=>'24','name'=>'Kemah'],
+			['city_id'=>'24','name'=>'Kemaliye'],
+			['city_id'=>'24','name'=>'Refahiye'],
+			['city_id'=>'24','name'=>'Tercan'],
+			['city_id'=>'24','name'=>'Üzümlü'],
+			['city_id'=>'24','name'=>'Otlukbeli'],
+			['city_id'=>'25','name'=>'Aşkale'],
+			['city_id'=>'25','name'=>'Çat'],
+			['city_id'=>'25','name'=>'Hınıs'],
+			['city_id'=>'25','name'=>'Horasan'],
+			['city_id'=>'25','name'=>'İspir'],
+			['city_id'=>'25','name'=>'Karayazı'],
+			['city_id'=>'25','name'=>'Narman'],
+			['city_id'=>'25','name'=>'Oltu'],
+			['city_id'=>'25','name'=>'Olur'],
+			['city_id'=>'25','name'=>'Pasinler'],
+			['city_id'=>'25','name'=>'Şenkaya'],
+			['city_id'=>'25','name'=>'Tekman'],
+			['city_id'=>'25','name'=>'Tortum'],
+			['city_id'=>'25','name'=>'Karaçoban'],
+			['city_id'=>'25','name'=>'Uzundere'],
+			['city_id'=>'25','name'=>'Pazaryolu'],
+			['city_id'=>'25','name'=>'Aziziye'],
+			['city_id'=>'25','name'=>'Köprüköy'],
+			['city_id'=>'25','name'=>'Palandöken'],
+			['city_id'=>'25','name'=>'Yakutiye'],
+			['city_id'=>'26','name'=>'Çifteler'],
+			['city_id'=>'26','name'=>'Mahmudiye'],
+			['city_id'=>'26','name'=>'Mihalıççık'],
+			['city_id'=>'26','name'=>'Sarıcakaya'],
+			['city_id'=>'26','name'=>'Seyitgazi'],
+			['city_id'=>'26','name'=>'Sivrihisar'],
+			['city_id'=>'26','name'=>'Alpu'],
+			['city_id'=>'26','name'=>'Beylikova'],
+			['city_id'=>'26','name'=>'İnönü'],
+			['city_id'=>'26','name'=>'Günyüzü'],
+			['city_id'=>'26','name'=>'Han'],
+			['city_id'=>'26','name'=>'Mihalgazi'],
+			['city_id'=>'26','name'=>'Odunpazarı'],
+			['city_id'=>'26','name'=>'Tepebaşı'],
+			['city_id'=>'27','name'=>'Araban'],
+			['city_id'=>'27','name'=>'İslahiye'],
+			['city_id'=>'27','name'=>'Nizip'],
+			['city_id'=>'27','name'=>'Oğuzeli'],
+			['city_id'=>'27','name'=>'Yavuzeli'],
+			['city_id'=>'27','name'=>'Şahinbey'],
+			['city_id'=>'27','name'=>'Şehitkamil'],
+			['city_id'=>'27','name'=>'Karkamış'],
+			['city_id'=>'27','name'=>'Nurdağı'],
+			['city_id'=>'28','name'=>'Alucra'],
+			['city_id'=>'28','name'=>'Bulancak'],
+			['city_id'=>'28','name'=>'Dereli'],
+			['city_id'=>'28','name'=>'Espiye'],
+			['city_id'=>'28','name'=>'Eynesil'],
+			['city_id'=>'28','name'=>'Giresun Merkez'],
+			['city_id'=>'28','name'=>'Görele'],
+			['city_id'=>'28','name'=>'Keşap'],
+			['city_id'=>'28','name'=>'Şebinkarahisar'],
+			['city_id'=>'28','name'=>'Tirebolu'],
+			['city_id'=>'28','name'=>'Piraziz'],
+			['city_id'=>'28','name'=>'Yağlıdere'],
+			['city_id'=>'28','name'=>'Çamoluk'],
+			['city_id'=>'28','name'=>'Çanakçı'],
+			['city_id'=>'28','name'=>'Doğankent'],
+			['city_id'=>'28','name'=>'Güce'],
+			['city_id'=>'29','name'=>'Gümüşhane Merkez'],
+			['city_id'=>'29','name'=>'Kelkit'],
+			['city_id'=>'29','name'=>'Şiran'],
+			['city_id'=>'29','name'=>'Torul'],
+			['city_id'=>'29','name'=>'Köse'],
+			['city_id'=>'29','name'=>'Kürtün'],
+			['city_id'=>'30','name'=>'Çukurca'],
+			['city_id'=>'30','name'=>'Hakkari Merkez'],
+			['city_id'=>'30','name'=>'Şemdinli'],
+			['city_id'=>'30','name'=>'Yüksekova'],
+			['city_id'=>'31','name'=>'Altınözü'],
+			['city_id'=>'31','name'=>'Dörtyol'],
+			['city_id'=>'31','name'=>'Hassa'],
+			['city_id'=>'31','name'=>'İskenderun'],
+			['city_id'=>'31','name'=>'Kırıkhan'],
+			['city_id'=>'31','name'=>'Reyhanlı'],
+			['city_id'=>'31','name'=>'Samandağ'],
+			['city_id'=>'31','name'=>'Yayladağı'],
+			['city_id'=>'31','name'=>'Erzin'],
+			['city_id'=>'31','name'=>'Belen'],
+			['city_id'=>'31','name'=>'Kumlu'],
+			['city_id'=>'31','name'=>'Antakya'],
+			['city_id'=>'31','name'=>'Arsuz'],
+			['city_id'=>'31','name'=>'Defne'],
+			['city_id'=>'31','name'=>'Payas'],
+			['city_id'=>'32','name'=>'Atabey'],
+			['city_id'=>'32','name'=>'Eğirdir'],
+			['city_id'=>'32','name'=>'Gelendost'],
+			['city_id'=>'32','name'=>'Isparta Merkez'],
+			['city_id'=>'32','name'=>'Keçiborlu'],
+			['city_id'=>'32','name'=>'Senirkent'],
+			['city_id'=>'32','name'=>'Sütçüler'],
+			['city_id'=>'32','name'=>'Şarkikaraağaç'],
+			['city_id'=>'32','name'=>'Uluborlu'],
+			['city_id'=>'32','name'=>'Yalvaç'],
+			['city_id'=>'32','name'=>'Aksu / Isparta'],
+			['city_id'=>'32','name'=>'Gönen / Isparta'],
+			['city_id'=>'32','name'=>'Yenişarbademli'],
+			['city_id'=>'33','name'=>'Anamur'],
+			['city_id'=>'33','name'=>'Erdemli'],
+			['city_id'=>'33','name'=>'Gülnar'],
+			['city_id'=>'33','name'=>'Mut'],
+			['city_id'=>'33','name'=>'Silifke'],
+			['city_id'=>'33','name'=>'Tarsus'],
+			['city_id'=>'33','name'=>'Aydıncık / Mersin'],
+			['city_id'=>'33','name'=>'Bozyazı'],
+			['city_id'=>'33','name'=>'Çamlıyayla'],
+			['city_id'=>'33','name'=>'Akdeniz'],
+			['city_id'=>'33','name'=>'Mezitli'],
+			['city_id'=>'33','name'=>'Toroslar'],
+			['city_id'=>'33','name'=>'Yenişehir / Mersin'],
+			['city_id'=>'34','name'=>'Adalar'],
+			['city_id'=>'34','name'=>'Bakırköy'],
+			['city_id'=>'34','name'=>'Beşiktaş'],
+			['city_id'=>'34','name'=>'Beykoz'],
+			['city_id'=>'34','name'=>'Beyoğlu'],
+			['city_id'=>'34','name'=>'Çatalca'],
+			['city_id'=>'34','name'=>'Eyüp'],
+			['city_id'=>'34','name'=>'Fatih'],
+			['city_id'=>'34','name'=>'Gaziosmanpaşa'],
+			['city_id'=>'34','name'=>'Kadıköy'],
+			['city_id'=>'34','name'=>'Kartal'],
+			['city_id'=>'34','name'=>'Sarıyer'],
+			['city_id'=>'34','name'=>'Silivri'],
+			['city_id'=>'34','name'=>'Şile'],
+			['city_id'=>'34','name'=>'Şişli'],
+			['city_id'=>'34','name'=>'Üsküdar'],
+			['city_id'=>'34','name'=>'Zeytinburnu'],
+			['city_id'=>'34','name'=>'Büyükçekmece'],
+			['city_id'=>'34','name'=>'Kağıthane'],
+			['city_id'=>'34','name'=>'Küçükçekmece'],
+			['city_id'=>'34','name'=>'Pendik'],
+			['city_id'=>'34','name'=>'Ümraniye'],
+			['city_id'=>'34','name'=>'Bayrampaşa'],
+			['city_id'=>'34','name'=>'Avcılar'],
+			['city_id'=>'34','name'=>'Bağcılar'],
+			['city_id'=>'34','name'=>'Bahçelievler'],
+			['city_id'=>'34','name'=>'Güngören'],
+			['city_id'=>'34','name'=>'Maltepe'],
+			['city_id'=>'34','name'=>'Sultanbeyli'],
+			['city_id'=>'34','name'=>'Tuzla'],
+			['city_id'=>'34','name'=>'Esenler'],
+			['city_id'=>'34','name'=>'Arnavutköy'],
+			['city_id'=>'34','name'=>'Ataşehir'],
+			['city_id'=>'34','name'=>'Başakşehir'],
+			['city_id'=>'34','name'=>'Beylikdüzü'],
+			['city_id'=>'34','name'=>'Çekmeköy'],
+			['city_id'=>'34','name'=>'Esenyurt'],
+			['city_id'=>'34','name'=>'Sancaktepe'],
+			['city_id'=>'34','name'=>'Sultangazi'],
+			['city_id'=>'35','name'=>'Aliağa'],
+			['city_id'=>'35','name'=>'Bayındır'],
+			['city_id'=>'35','name'=>'Bergama'],
+			['city_id'=>'35','name'=>'Bornova'],
+			['city_id'=>'35','name'=>'Çeşme'],
+			['city_id'=>'35','name'=>'Dikili'],
+			['city_id'=>'35','name'=>'Foça'],
+			['city_id'=>'35','name'=>'Karaburun'],
+			['city_id'=>'35','name'=>'Karşıyaka'],
+			['city_id'=>'35','name'=>'Kemalpaşa / İzmir'],
+			['city_id'=>'35','name'=>'Kınık'],
+			['city_id'=>'35','name'=>'Kiraz'],
+			['city_id'=>'35','name'=>'Menemen'],
+			['city_id'=>'35','name'=>'Ödemiş'],
+			['city_id'=>'35','name'=>'Seferihisar'],
+			['city_id'=>'35','name'=>'Selçuk'],
+			['city_id'=>'35','name'=>'Tire'],
+			['city_id'=>'35','name'=>'Torbalı'],
+			['city_id'=>'35','name'=>'Urla'],
+			['city_id'=>'35','name'=>'Beydağ'],
+			['city_id'=>'35','name'=>'Buca'],
+			['city_id'=>'35','name'=>'Konak'],
+			['city_id'=>'35','name'=>'Menderes'],
+			['city_id'=>'35','name'=>'Balçova'],
+			['city_id'=>'35','name'=>'Çiğli'],
+			['city_id'=>'35','name'=>'Gaziemir'],
+			['city_id'=>'35','name'=>'Narlıdere'],
+			['city_id'=>'35','name'=>'Güzelbahçe'],
+			['city_id'=>'35','name'=>'Bayraklı'],
+			['city_id'=>'35','name'=>'Karabağlar'],
+			['city_id'=>'36','name'=>'Arpaçay'],
+			['city_id'=>'36','name'=>'Digor'],
+			['city_id'=>'36','name'=>'Kağızman'],
+			['city_id'=>'36','name'=>'Kars Merkez'],
+			['city_id'=>'36','name'=>'Sarıkamış'],
+			['city_id'=>'36','name'=>'Selim'],
+			['city_id'=>'36','name'=>'Susuz'],
+			['city_id'=>'36','name'=>'Akyaka'],
+			['city_id'=>'37','name'=>'Abana'],
+			['city_id'=>'37','name'=>'Araç'],
+			['city_id'=>'37','name'=>'Azdavay'],
+			['city_id'=>'37','name'=>'Bozkurt / Kastamonu'],
+			['city_id'=>'37','name'=>'Cide'],
+			['city_id'=>'37','name'=>'Çatalzeytin'],
+			['city_id'=>'37','name'=>'Daday'],
+			['city_id'=>'37','name'=>'Devrekani'],
+			['city_id'=>'37','name'=>'İnebolu'],
+			['city_id'=>'37','name'=>'Kastamonu Merkez'],
+			['city_id'=>'37','name'=>'Küre'],
+			['city_id'=>'37','name'=>'Taşköprü'],
+			['city_id'=>'37','name'=>'Tosya'],
+			['city_id'=>'37','name'=>'İhsangazi'],
+			['city_id'=>'37','name'=>'Pınarbaşı / Kastamonu'],
+			['city_id'=>'37','name'=>'Şenpazar'],
+			['city_id'=>'37','name'=>'Ağlı'],
+			['city_id'=>'37','name'=>'Doğanyurt'],
+			['city_id'=>'37','name'=>'Hanönü'],
+			['city_id'=>'37','name'=>'Seydiler'],
+			['city_id'=>'38','name'=>'Bünyan'],
+			['city_id'=>'38','name'=>'Develi'],
+			['city_id'=>'38','name'=>'Felahiye'],
+			['city_id'=>'38','name'=>'İncesu'],
+			['city_id'=>'38','name'=>'Pınarbaşı / Kayseri'],
+			['city_id'=>'38','name'=>'Sarıoğlan'],
+			['city_id'=>'38','name'=>'Sarız'],
+			['city_id'=>'38','name'=>'Tomarza'],
+			['city_id'=>'38','name'=>'Yahyalı'],
+			['city_id'=>'38','name'=>'Yeşilhisar'],
+			['city_id'=>'38','name'=>'Akkışla'],
+			['city_id'=>'38','name'=>'Talas'],
+			['city_id'=>'38','name'=>'Kocasinan'],
+			['city_id'=>'38','name'=>'Melikgazi'],
+			['city_id'=>'38','name'=>'Hacılar'],
+			['city_id'=>'38','name'=>'Özvatan'],
+			['city_id'=>'39','name'=>'Babaeski'],
+			['city_id'=>'39','name'=>'Demirköy'],
+			['city_id'=>'39','name'=>'Kırklareli Merkez'],
+			['city_id'=>'39','name'=>'Kofçaz'],
+			['city_id'=>'39','name'=>'Lüleburgaz'],
+			['city_id'=>'39','name'=>'Pehlivanköy'],
+			['city_id'=>'39','name'=>'Pınarhisar'],
+			['city_id'=>'39','name'=>'Vize'],
+			['city_id'=>'40','name'=>'Çiçekdağı'],
+			['city_id'=>'40','name'=>'Kaman'],
+			['city_id'=>'40','name'=>'Kırşehir Merkez'],
+			['city_id'=>'40','name'=>'Mucur'],
+			['city_id'=>'40','name'=>'Akpınar'],
+			['city_id'=>'40','name'=>'Akçakent'],
+			['city_id'=>'40','name'=>'Boztepe'],
+			['city_id'=>'41','name'=>'Gebze'],
+			['city_id'=>'41','name'=>'Gölcük'],
+			['city_id'=>'41','name'=>'Kandıra'],
+			['city_id'=>'41','name'=>'Karamürsel'],
+			['city_id'=>'41','name'=>'Körfez'],
+			['city_id'=>'41','name'=>'Derince'],
+			['city_id'=>'41','name'=>'Başiskele'],
+			['city_id'=>'41','name'=>'Çayırova'],
+			['city_id'=>'41','name'=>'Darıca'],
+			['city_id'=>'41','name'=>'Dilovası'],
+			['city_id'=>'41','name'=>'İzmit'],
+			['city_id'=>'41','name'=>'Kartepe'],
+			['city_id'=>'42','name'=>'Akşehir'],
+			['city_id'=>'42','name'=>'Beyşehir'],
+			['city_id'=>'42','name'=>'Bozkır'],
+			['city_id'=>'42','name'=>'Cihanbeyli'],
+			['city_id'=>'42','name'=>'Çumra'],
+			['city_id'=>'42','name'=>'Doğanhisar'],
+			['city_id'=>'42','name'=>'Ereğli / Konya'],
+			['city_id'=>'42','name'=>'Hadim'],
+			['city_id'=>'42','name'=>'Ilgın'],
+			['city_id'=>'42','name'=>'Kadınhanı'],
+			['city_id'=>'42','name'=>'Karapınar'],
+			['city_id'=>'42','name'=>'Kulu'],
+			['city_id'=>'42','name'=>'Sarayönü'],
+			['city_id'=>'42','name'=>'Seydişehir'],
+			['city_id'=>'42','name'=>'Yunak'],
+			['city_id'=>'42','name'=>'Akören'],
+			['city_id'=>'42','name'=>'Altınekin'],
+			['city_id'=>'42','name'=>'Derebucak'],
+			['city_id'=>'42','name'=>'Hüyük'],
+			['city_id'=>'42','name'=>'Karatay'],
+			['city_id'=>'42','name'=>'Meram'],
+			['city_id'=>'42','name'=>'Selçuklu'],
+			['city_id'=>'42','name'=>'Taşkent'],
+			['city_id'=>'42','name'=>'Ahırlı'],
+			['city_id'=>'42','name'=>'Çeltik'],
+			['city_id'=>'42','name'=>'Derbent'],
+			['city_id'=>'42','name'=>'Emirgazi'],
+			['city_id'=>'42','name'=>'Güneysınır'],
+			['city_id'=>'42','name'=>'Halkapınar'],
+			['city_id'=>'42','name'=>'Tuzlukçu'],
+			['city_id'=>'42','name'=>'Yalıhüyük'],
+			['city_id'=>'43','name'=>'Altıntaş'],
+			['city_id'=>'43','name'=>'Domaniç'],
+			['city_id'=>'43','name'=>'Emet'],
+			['city_id'=>'43','name'=>'Gediz'],
+			['city_id'=>'43','name'=>'Kütahya Merkez'],
+			['city_id'=>'43','name'=>'Simav'],
+			['city_id'=>'43','name'=>'Tavşanlı'],
+			['city_id'=>'43','name'=>'Aslanapa'],
+			['city_id'=>'43','name'=>'Dumlupınar'],
+			['city_id'=>'43','name'=>'Hisarcık'],
+			['city_id'=>'43','name'=>'Şaphane'],
+			['city_id'=>'43','name'=>'Çavdarhisar'],
+			['city_id'=>'43','name'=>'Pazarlar'],
+			['city_id'=>'44','name'=>'Akçadağ'],
+			['city_id'=>'44','name'=>'Arapgir'],
+			['city_id'=>'44','name'=>'Arguvan'],
+			['city_id'=>'44','name'=>'Darende'],
+			['city_id'=>'44','name'=>'Doğanşehir'],
+			['city_id'=>'44','name'=>'Hekimhan'],
+			['city_id'=>'44','name'=>'Pütürge'],
+			['city_id'=>'44','name'=>'Yeşilyurt / Malatya'],
+			['city_id'=>'44','name'=>'Battalgazi'],
+			['city_id'=>'44','name'=>'Doğanyol'],
+			['city_id'=>'44','name'=>'Kale / Malatya'],
+			['city_id'=>'44','name'=>'Kuluncak'],
+			['city_id'=>'44','name'=>'Yazıhan'],
+			['city_id'=>'45','name'=>'Akhisar'],
+			['city_id'=>'45','name'=>'Alaşehir'],
+			['city_id'=>'45','name'=>'Demirci'],
+			['city_id'=>'45','name'=>'Gördes'],
+			['city_id'=>'45','name'=>'Kırkağaç'],
+			['city_id'=>'45','name'=>'Kula'],
+			['city_id'=>'45','name'=>'Salihli'],
+			['city_id'=>'45','name'=>'Sarıgöl'],
+			['city_id'=>'45','name'=>'Saruhanlı'],
+			['city_id'=>'45','name'=>'Selendi'],
+			['city_id'=>'45','name'=>'Soma'],
+			['city_id'=>'45','name'=>'Turgutlu'],
+			['city_id'=>'45','name'=>'Ahmetli'],
+			['city_id'=>'45','name'=>'Gölmarmara'],
+			['city_id'=>'45','name'=>'Köprübaşı / Manisa'],
+			['city_id'=>'45','name'=>'Şehzadeler'],
+			['city_id'=>'45','name'=>'Yunusemre'],
+			['city_id'=>'46','name'=>'Afşin'],
+			['city_id'=>'46','name'=>'Andırın'],
+			['city_id'=>'46','name'=>'Elbistan'],
+			['city_id'=>'46','name'=>'Göksun'],
+			['city_id'=>'46','name'=>'Pazarcık'],
+			['city_id'=>'46','name'=>'Türkoğlu'],
+			['city_id'=>'46','name'=>'Çağlayancerit'],
+			['city_id'=>'46','name'=>'Ekinözü'],
+			['city_id'=>'46','name'=>'Nurhak'],
+			['city_id'=>'46','name'=>'Dulkadiroğlu'],
+			['city_id'=>'46','name'=>'Onikişubat'],
+			['city_id'=>'47','name'=>'Derik'],
+			['city_id'=>'47','name'=>'Kızıltepe'],
+			['city_id'=>'47','name'=>'Mazıdağı'],
+			['city_id'=>'47','name'=>'Midyat'],
+			['city_id'=>'47','name'=>'Nusaybin'],
+			['city_id'=>'47','name'=>'Ömerli'],
+			['city_id'=>'47','name'=>'Savur'],
+			['city_id'=>'47','name'=>'Dargeçit'],
+			['city_id'=>'47','name'=>'Yeşilli'],
+			['city_id'=>'47','name'=>'Artuklu'],
+			['city_id'=>'48','name'=>'Bodrum'],
+			['city_id'=>'48','name'=>'Datça'],
+			['city_id'=>'48','name'=>'Fethiye'],
+			['city_id'=>'48','name'=>'Köyceğiz'],
+			['city_id'=>'48','name'=>'Marmaris'],
+			['city_id'=>'48','name'=>'Milas'],
+			['city_id'=>'48','name'=>'Ula'],
+			['city_id'=>'48','name'=>'Yatağan'],
+			['city_id'=>'48','name'=>'Dalaman'],
+			['city_id'=>'48','name'=>'Ortaca'],
+			['city_id'=>'48','name'=>'Kavaklıdere'],
+			['city_id'=>'48','name'=>'Menteşe'],
+			['city_id'=>'48','name'=>'Seydikemer'],
+			['city_id'=>'49','name'=>'Bulanık'],
+			['city_id'=>'49','name'=>'Malazgirt'],
+			['city_id'=>'49','name'=>'Muş Merkez'],
+			['city_id'=>'49','name'=>'Varto'],
+			['city_id'=>'49','name'=>'Hasköy'],
+			['city_id'=>'49','name'=>'Korkut'],
+			['city_id'=>'50','name'=>'Avanos'],
+			['city_id'=>'50','name'=>'Derinkuyu'],
+			['city_id'=>'50','name'=>'Gülşehir'],
+			['city_id'=>'50','name'=>'Hacıbektaş'],
+			['city_id'=>'50','name'=>'Kozaklı'],
+			['city_id'=>'50','name'=>'Nevşehir Merkez'],
+			['city_id'=>'50','name'=>'Ürgüp'],
+			['city_id'=>'50','name'=>'Acıgöl'],
+			['city_id'=>'51','name'=>'Bor'],
+			['city_id'=>'51','name'=>'Çamardı'],
+			['city_id'=>'51','name'=>'Niğde Merkez'],
+			['city_id'=>'51','name'=>'Ulukışla'],
+			['city_id'=>'51','name'=>'Altunhisar'],
+			['city_id'=>'51','name'=>'Çiftlik'],
+			['city_id'=>'52','name'=>'Akkuş'],
+			['city_id'=>'52','name'=>'Aybastı'],
+			['city_id'=>'52','name'=>'Fatsa'],
+			['city_id'=>'52','name'=>'Gölköy'],
+			['city_id'=>'52','name'=>'Korgan'],
+			['city_id'=>'52','name'=>'Kumru'],
+			['city_id'=>'52','name'=>'Mesudiye'],
+			['city_id'=>'52','name'=>'Perşembe'],
+			['city_id'=>'52','name'=>'Ulubey / Ordu'],
+			['city_id'=>'52','name'=>'Ünye'],
+			['city_id'=>'52','name'=>'Gülyalı'],
+			['city_id'=>'52','name'=>'Gürgentepe'],
+			['city_id'=>'52','name'=>'Çamaş'],
+			['city_id'=>'52','name'=>'Çatalpınar'],
+			['city_id'=>'52','name'=>'Çaybaşı'],
+			['city_id'=>'52','name'=>'İkizce'],
+			['city_id'=>'52','name'=>'Kabadüz'],
+			['city_id'=>'52','name'=>'Kabataş'],
+			['city_id'=>'52','name'=>'Altınordu'],
+			['city_id'=>'53','name'=>'Ardeşen'],
+			['city_id'=>'53','name'=>'Çamlıhemşin'],
+			['city_id'=>'53','name'=>'Çayeli'],
+			['city_id'=>'53','name'=>'Fındıklı'],
+			['city_id'=>'53','name'=>'İkizdere'],
+			['city_id'=>'53','name'=>'Kalkandere'],
+			['city_id'=>'53','name'=>'Pazar / Rize'],
+			['city_id'=>'53','name'=>'Rize Merkez'],
+			['city_id'=>'53','name'=>'Güneysu'],
+			['city_id'=>'53','name'=>'Derepazarı'],
+			['city_id'=>'53','name'=>'Hemşin'],
+			['city_id'=>'53','name'=>'İyidere'],
+			['city_id'=>'54','name'=>'Akyazı'],
+			['city_id'=>'54','name'=>'Geyve'],
+			['city_id'=>'54','name'=>'Hendek'],
+			['city_id'=>'54','name'=>'Karasu'],
+			['city_id'=>'54','name'=>'Kaynarca'],
+			['city_id'=>'54','name'=>'Sapanca'],
+			['city_id'=>'54','name'=>'Kocaali'],
+			['city_id'=>'54','name'=>'Pamukova'],
+			['city_id'=>'54','name'=>'Taraklı'],
+			['city_id'=>'54','name'=>'Ferizli'],
+			['city_id'=>'54','name'=>'Karapürçek'],
+			['city_id'=>'54','name'=>'Söğütlü'],
+			['city_id'=>'54','name'=>'Adapazarı'],
+			['city_id'=>'54','name'=>'Arifiye'],
+			['city_id'=>'54','name'=>'Erenler'],
+			['city_id'=>'54','name'=>'Serdivan'],
+			['city_id'=>'55','name'=>'Alaçam'],
+			['city_id'=>'55','name'=>'Bafra'],
+			['city_id'=>'55','name'=>'Çarşamba'],
+			['city_id'=>'55','name'=>'Havza'],
+			['city_id'=>'55','name'=>'Kavak'],
+			['city_id'=>'55','name'=>'Ladik'],
+			['city_id'=>'55','name'=>'Terme'],
+			['city_id'=>'55','name'=>'Vezirköprü'],
+			['city_id'=>'55','name'=>'Asarcık'],
+			['city_id'=>'55','name'=>'19 Mayıs'],
+			['city_id'=>'55','name'=>'Salıpazarı'],
+			['city_id'=>'55','name'=>'Tekkeköy'],
+			['city_id'=>'55','name'=>'Ayvacık / Samsun'],
+			['city_id'=>'55','name'=>'Yakakent'],
+			['city_id'=>'55','name'=>'Atakum'],
+			['city_id'=>'55','name'=>'Canik'],
+			['city_id'=>'55','name'=>'İlkadım'],
+			['city_id'=>'56','name'=>'Baykan'],
+			['city_id'=>'56','name'=>'Eruh'],
+			['city_id'=>'56','name'=>'Kurtalan'],
+			['city_id'=>'56','name'=>'Pervari'],
+			['city_id'=>'56','name'=>'Siirt Merkez'],
+			['city_id'=>'56','name'=>'Şirvan'],
+			['city_id'=>'56','name'=>'Tillo'],
+			['city_id'=>'57','name'=>'Ayancık'],
+			['city_id'=>'57','name'=>'Boyabat'],
+			['city_id'=>'57','name'=>'Durağan'],
+			['city_id'=>'57','name'=>'Erfelek'],
+			['city_id'=>'57','name'=>'Gerze'],
+			['city_id'=>'57','name'=>'Sinop Merkez'],
+			['city_id'=>'57','name'=>'Türkeli'],
+			['city_id'=>'57','name'=>'Dikmen'],
+			['city_id'=>'57','name'=>'Saraydüzü'],
+			['city_id'=>'58','name'=>'Divriği'],
+			['city_id'=>'58','name'=>'Gemerek'],
+			['city_id'=>'58','name'=>'Gürün'],
+			['city_id'=>'58','name'=>'Hafik'],
+			['city_id'=>'58','name'=>'İmranlı'],
+			['city_id'=>'58','name'=>'Kangal'],
+			['city_id'=>'58','name'=>'Koyulhisar'],
+			['city_id'=>'58','name'=>'Sivas Merkez'],
+			['city_id'=>'58','name'=>'Suşehri'],
+			['city_id'=>'58','name'=>'Şarkışla'],
+			['city_id'=>'58','name'=>'Yıldızeli'],
+			['city_id'=>'58','name'=>'Zara'],
+			['city_id'=>'58','name'=>'Akıncılar'],
+			['city_id'=>'58','name'=>'Altınyayla / Sivas'],
+			['city_id'=>'58','name'=>'Doğanşar'],
+			['city_id'=>'58','name'=>'Gölova'],
+			['city_id'=>'58','name'=>'Ulaş'],
+			['city_id'=>'59','name'=>'Çerkezköy'],
+			['city_id'=>'59','name'=>'Çorlu'],
+			['city_id'=>'59','name'=>'Hayrabolu'],
+			['city_id'=>'59','name'=>'Malkara'],
+			['city_id'=>'59','name'=>'Muratlı'],
+			['city_id'=>'59','name'=>'Saray / Tekirdağ'],
+			['city_id'=>'59','name'=>'Şarköy'],
+			['city_id'=>'59','name'=>'Marmaraereğlisi'],
+			['city_id'=>'59','name'=>'Ergene'],
+			['city_id'=>'59','name'=>'Kapaklı'],
+			['city_id'=>'59','name'=>'Süleymanpaşa'],
+			['city_id'=>'60','name'=>'Almus'],
+			['city_id'=>'60','name'=>'Artova'],
+			['city_id'=>'60','name'=>'Erbaa'],
+			['city_id'=>'60','name'=>'Niksar'],
+			['city_id'=>'60','name'=>'Reşadiye'],
+			['city_id'=>'60','name'=>'Tokat Merkez'],
+			['city_id'=>'60','name'=>'Turhal'],
+			['city_id'=>'60','name'=>'Zile'],
+			['city_id'=>'60','name'=>'Pazar / Tokat'],
+			['city_id'=>'60','name'=>'Yeşilyurt / Tokat'],
+			['city_id'=>'60','name'=>'Başçiftlik'],
+			['city_id'=>'60','name'=>'Sulusaray'],
+			['city_id'=>'61','name'=>'Akçaabat'],
+			['city_id'=>'61','name'=>'Araklı'],
+			['city_id'=>'61','name'=>'Arsin'],
+			['city_id'=>'61','name'=>'Çaykara'],
+			['city_id'=>'61','name'=>'Maçka'],
+			['city_id'=>'61','name'=>'Of'],
+			['city_id'=>'61','name'=>'Sürmene'],
+			['city_id'=>'61','name'=>'Tonya'],
+			['city_id'=>'61','name'=>'Vakfıkebir'],
+			['city_id'=>'61','name'=>'Yomra'],
+			['city_id'=>'61','name'=>'Beşikdüzü'],
+			['city_id'=>'61','name'=>'Şalpazarı'],
+			['city_id'=>'61','name'=>'Çarşıbaşı'],
+			['city_id'=>'61','name'=>'Dernekpazarı'],
+			['city_id'=>'61','name'=>'Düzköy'],
+			['city_id'=>'61','name'=>'Hayrat'],
+			['city_id'=>'61','name'=>'Köprübaşı / Trabzon'],
+			['city_id'=>'61','name'=>'Ortahisar'],
+			['city_id'=>'62','name'=>'Çemişgezek'],
+			['city_id'=>'62','name'=>'Hozat'],
+			['city_id'=>'62','name'=>'Mazgirt'],
+			['city_id'=>'62','name'=>'Nazımiye'],
+			['city_id'=>'62','name'=>'Ovacık / Tunceli'],
+			['city_id'=>'62','name'=>'Pertek'],
+			['city_id'=>'62','name'=>'Pülümür'],
+			['city_id'=>'62','name'=>'Tunceli Merkez'],
+			['city_id'=>'63','name'=>'Akçakale'],
+			['city_id'=>'63','name'=>'Birecik'],
+			['city_id'=>'63','name'=>'Bozova'],
+			['city_id'=>'63','name'=>'Ceylanpınar'],
+			['city_id'=>'63','name'=>'Halfeti'],
+			['city_id'=>'63','name'=>'Hilvan'],
+			['city_id'=>'63','name'=>'Siverek'],
+			['city_id'=>'63','name'=>'Suruç'],
+			['city_id'=>'63','name'=>'Viranşehir'],
+			['city_id'=>'63','name'=>'Harran'],
+			['city_id'=>'63','name'=>'Eyyübiye'],
+			['city_id'=>'63','name'=>'Haliliye'],
+			['city_id'=>'63','name'=>'Karaköprü'],
+			['city_id'=>'64','name'=>'Banaz'],
+			['city_id'=>'64','name'=>'Eşme'],
+			['city_id'=>'64','name'=>'Karahallı'],
+			['city_id'=>'64','name'=>'Sivaslı'],
+			['city_id'=>'64','name'=>'Ulubey / Uşak'],
+			['city_id'=>'64','name'=>'Uşak Merkez'],
+			['city_id'=>'65','name'=>'Başkale'],
+			['city_id'=>'65','name'=>'Çatak'],
+			['city_id'=>'65','name'=>'Erciş'],
+			['city_id'=>'65','name'=>'Gevaş'],
+			['city_id'=>'65','name'=>'Gürpınar'],
+			['city_id'=>'65','name'=>'Muradiye'],
+			['city_id'=>'65','name'=>'Özalp'],
+			['city_id'=>'65','name'=>'Bahçesaray'],
+			['city_id'=>'65','name'=>'Çaldıran'],
+			['city_id'=>'65','name'=>'Edremit / Van'],
+			['city_id'=>'65','name'=>'Saray / Van'],
+			['city_id'=>'65','name'=>'İpekyolu'],
+			['city_id'=>'65','name'=>'Tuşba'],
+			['city_id'=>'66','name'=>'Akdağmadeni'],
+			['city_id'=>'66','name'=>'Boğazlıyan'],
+			['city_id'=>'66','name'=>'Çayıralan'],
+			['city_id'=>'66','name'=>'Çekerek'],
+			['city_id'=>'66','name'=>'Sarıkaya'],
+			['city_id'=>'66','name'=>'Sorgun'],
+			['city_id'=>'66','name'=>'Şefaatli'],
+			['city_id'=>'66','name'=>'Yerköy'],
+			['city_id'=>'66','name'=>'Yozgat Merkez'],
+			['city_id'=>'66','name'=>'Aydıncık / Yozgat'],
+			['city_id'=>'66','name'=>'Çandır'],
+			['city_id'=>'66','name'=>'Kadışehri'],
+			['city_id'=>'66','name'=>'Saraykent'],
+			['city_id'=>'66','name'=>'Yenifakılı'],
+			['city_id'=>'67','name'=>'Çaycuma'],
+			['city_id'=>'67','name'=>'Devrek'],
+			['city_id'=>'67','name'=>'Ereğli / Zonguldak'],
+			['city_id'=>'67','name'=>'Zonguldak Merkez'],
+			['city_id'=>'67','name'=>'Alaplı'],
+			['city_id'=>'67','name'=>'Gökçebey'],
+			['city_id'=>'67','name'=>'Kilimli'],
+			['city_id'=>'67','name'=>'Kozlu'],
+			['city_id'=>'68','name'=>'Aksaray Merkez'],
+			['city_id'=>'68','name'=>'Ortaköy / Aksaray'],
+			['city_id'=>'68','name'=>'Ağaçören'],
+			['city_id'=>'68','name'=>'Güzelyurt'],
+			['city_id'=>'68','name'=>'Sarıyahşi'],
+			['city_id'=>'68','name'=>'Eskil'],
+			['city_id'=>'68','name'=>'Gülağaç'],
+			['city_id'=>'69','name'=>'Bayburt Merkez'],
+			['city_id'=>'69','name'=>'Aydıntepe'],
+			['city_id'=>'69','name'=>'Demirözü'],
+			['city_id'=>'70','name'=>'Ermenek'],
+			['city_id'=>'70','name'=>'Karaman Merkez'],
+			['city_id'=>'70','name'=>'Ayrancı'],
+			['city_id'=>'70','name'=>'Kazımkarabekir'],
+			['city_id'=>'70','name'=>'Başyayla'],
+			['city_id'=>'70','name'=>'Sarıveliler'],
+			['city_id'=>'71','name'=>'Delice'],
+			['city_id'=>'71','name'=>'Keskin'],
+			['city_id'=>'71','name'=>'Kırıkkale Merkez'],
+			['city_id'=>'71','name'=>'Sulakyurt'],
+			['city_id'=>'71','name'=>'Bahşili'],
+			['city_id'=>'71','name'=>'Balışeyh'],
+			['city_id'=>'71','name'=>'Çelebi'],
+			['city_id'=>'71','name'=>'Karakeçili'],
+			['city_id'=>'71','name'=>'Yahşihan'],
+			['city_id'=>'72','name'=>'Batman Merkez'],
+			['city_id'=>'72','name'=>'Beşiri'],
+			['city_id'=>'72','name'=>'Gercüş'],
+			['city_id'=>'72','name'=>'Kozluk'],
+			['city_id'=>'72','name'=>'Sason'],
+			['city_id'=>'72','name'=>'Hasankeyf'],
+			['city_id'=>'73','name'=>'Beytüşşebap'],
+			['city_id'=>'73','name'=>'Cizre'],
+			['city_id'=>'73','name'=>'İdil'],
+			['city_id'=>'73','name'=>'Silopi'],
+			['city_id'=>'73','name'=>'Şırnak Merkez'],
+			['city_id'=>'73','name'=>'Uludere'],
+			['city_id'=>'73','name'=>'Güçlükonak'],
+			['city_id'=>'74','name'=>'Bartın Merkez'],
+			['city_id'=>'74','name'=>'Kurucaşile'],
+			['city_id'=>'74','name'=>'Ulus'],
+			['city_id'=>'74','name'=>'Amasra'],
+			['city_id'=>'75','name'=>'Ardahan Merkez'],
+			['city_id'=>'75','name'=>'Çıldır'],
+			['city_id'=>'75','name'=>'Göle'],
+			['city_id'=>'75','name'=>'Hanak'],
+			['city_id'=>'75','name'=>'Posof'],
+			['city_id'=>'75','name'=>'Damal'],
+			['city_id'=>'76','name'=>'Aralık'],
+			['city_id'=>'76','name'=>'Iğdır Merkez'],
+			['city_id'=>'76','name'=>'Tuzluca'],
+			['city_id'=>'76','name'=>'Karakoyunlu'],
+			['city_id'=>'77','name'=>'Yalova Merkez'],
+			['city_id'=>'77','name'=>'Altınova'],
+			['city_id'=>'77','name'=>'Armutlu'],
+			['city_id'=>'77','name'=>'Çınarcık'],
+			['city_id'=>'77','name'=>'Çiftlikköy'],
+			['city_id'=>'77','name'=>'Termal'],
+			['city_id'=>'78','name'=>'Eflani'],
+			['city_id'=>'78','name'=>'Eskipazar'],
+			['city_id'=>'78','name'=>'Karabük Merkez'],
+			['city_id'=>'78','name'=>'Ovacık / Karabük'],
+			['city_id'=>'78','name'=>'Safranbolu'],
+			['city_id'=>'78','name'=>'Yenice / Karabük'],
+			['city_id'=>'79','name'=>'Kilis Merkez'],
+			['city_id'=>'79','name'=>'Elbeyli'],
+			['city_id'=>'79','name'=>'Musabeyli'],
+			['city_id'=>'79','name'=>'Polateli'],
+			['city_id'=>'80','name'=>'Bahçe'],
+			['city_id'=>'80','name'=>'Kadirli'],
+			['city_id'=>'80','name'=>'Osmaniye Merkez'],
+			['city_id'=>'80','name'=>'Düziçi'],
+			['city_id'=>'80','name'=>'Hasanbeyli'],
+			['city_id'=>'80','name'=>'Sumbas'],
+			['city_id'=>'80','name'=>'Toprakkale'],
+			['city_id'=>'81','name'=>'Akçakoca'],
+			['city_id'=>'81','name'=>'Düzce Merkez'],
+			['city_id'=>'81','name'=>'Yığılca'],
+			['city_id'=>'81','name'=>'Cumayeri'],
+			['city_id'=>'81','name'=>'Gölyaka'],
+			['city_id'=>'81','name'=>'Çilimli'],
+			['city_id'=>'81','name'=>'Gümüşova'],
+			['city_id'=>'81','name'=>'Kaynaşlı'],		
+		];
+
+        foreach ($districts as $district) {
+            District::create($district);
+        }
+    }
+}
+**************************************************
+
+**************************************************
+database/migrations/user
+
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+class CreateUsersTable extends Migration
+{
+    /**
+     * Run the migrations.
+     *
+     * @return void
+     */
+    public function up()
+    {
+        Schema::create('users', function (Blueprint $table) {
+            $table->id();
+            $table->string('private_key')->unique();
+            $table->timestamps();
+            $table->softDeletes();
+            $table->unsignedBigInteger('created_by')->nullable();
+            $table->unsignedBigInteger('updated_by')->nullable();
+            $table->unsignedBigInteger('deleted_by')->nullable();
+            $table->boolean('is_active')->default(config('constants.ACTIVE'));
+            $table->enum('type', ['Employee', 'Audit', 'Customer']);
+            $table->string('name');
+            $table->string('surname');
+            $table->string('image')->default('uss-profile.jpg');
+            $table->string('telephone');
+            $table->string('email')->unique();
+            $table->timestamp('email_verified_at')->nullable();
+            $table->string('password');
+            $table->foreignId('branch_id')->constrained()->onDelete('cascade');
+            $table->foreignId('department_id')->constrained()->onDelete('cascade');
+            $table->foreignId('position_id')->constrained()->onDelete('cascade');
+            $table->rememberToken();
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     *
+     * @return void
+     */
+    public function down()
+    {
+        Schema::dropIfExists('users');
+    }
+}
+
+**************************************************
