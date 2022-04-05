@@ -302,20 +302,6 @@ Route::group(['middleware' => ['auth', 'is_active']], function () {
                 'branches' => App\Http\Controllers\Dashboard\ResourceControllers\BranchController::class,
                 'departments' => App\Http\Controllers\Dashboard\ResourceControllers\DepartmentController::class,
                 'positions' => App\Http\Controllers\Dashboard\ResourceControllers\PositionController::class,
-                'real-estates' => App\Http\Controllers\Dashboard\ResourceControllers\RealEstateController::class,
-                'portfolios' => App\Http\Controllers\Dashboard\ResourceControllers\PortfolioController::class,
-                'activities' => App\Http\Controllers\Dashboard\ResourceControllers\ActivityController::class,
-                'promise-sales' => App\Http\Controllers\Dashboard\ResourceControllers\PromiseSaleController::class,
-                'competitor-markets' => App\Http\Controllers\Dashboard\ResourceControllers\CompetitorMarketController::class,
-                'sold-records' => App\Http\Controllers\Dashboard\ResourceControllers\SoldRecordController::class,
-                'sale-records' => App\Http\Controllers\Dashboard\ResourceControllers\SaleRecordController::class,
-                'trainings' => App\Http\Controllers\Dashboard\ResourceControllers\TrainingController::class,
-                'marketing-plans' => App\Http\Controllers\Dashboard\ResourceControllers\MarketingPlanController::class,
-                'report-marketing-plans' => App\Http\Controllers\Dashboard\ResourceControllers\ReportMarketingPlanController::class,
-                'marketing-service-reports' => App\Http\Controllers\Dashboard\ResourceControllers\MarketingServiceReportController::class,
-                'customers' => App\Http\Controllers\Dashboard\ResourceControllers\CustomerController::class,
-                'backdown-coins' => App\Http\Controllers\Dashboard\ResourceControllers\BackdownCoinController::class,
-                'applications' => App\Http\Controllers\Dashboard\ResourceControllers\ApplicationController::class,
             ]);
         });
     });
