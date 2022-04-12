@@ -23,8 +23,7 @@ public function boot()
 **********************************************************************************
 
 ***Türkçe Dil Dosyası***
-https://github.com/laravel-tr/Laravel7-lang
-resources\lang\tr tr.json
+https://github.com/herkod/laravel-tr
 **********************************************************************************
 
 ***config/database.php***
