@@ -11,17 +11,6 @@ DB_USERNAME=root
 DB_PASSWORD=
 **********************************************************************************
 
-***app/Providers/AppServiceProvider.php***
-use Illuminate\Support\Facades\Schema;
-
-public function boot()
-{
-	Schema::defaultStringLength(255);
-	setLocale(LC_TIME, 'tr_TR');
-	\Carbon\Carbon::setLocale('tr');
-}
-**********************************************************************************
-
 ***Türkçe Dil Dosyası***
 https://github.com/herkod/laravel-tr
 **********************************************************************************
@@ -34,6 +23,7 @@ https://github.com/herkod/laravel-tr
 
 **********************************************************************************
 ***Helper Dosyası***
+***app/Providers/AppServiceProvider.php***
 <?php
 
 namespace App\Providers;
