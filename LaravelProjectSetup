@@ -104,19 +104,19 @@ config/app.php
 
 ***Application Date Format***
 config/app.php
-		/*
-		|--------------------------------------------------------------------------
-		| Application Date Format
-		|--------------------------------------------------------------------------
-		|
-		| Here you may specify the default date format for your application, which
-		| will be used with date and date-time functions.
-		|
-		*/
+    /*
+    |--------------------------------------------------------------------------
+    | Application Date Format
+    |--------------------------------------------------------------------------
+    |
+    | Here you may specify the default date format for your application, which
+    | will be used with date and date-time functions.
+    |
+    */
 
-		'date_format' => 'd.m.Y',
+    'date_format' => 'd.m.Y',
 
-		'date_format_js' => 'dd.mm.yyyy',
+    'date_format_js' => 'dd.mm.yyyy',
 **********************************************************************************
 
 ***SoftDeletes***
