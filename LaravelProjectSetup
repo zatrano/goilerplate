@@ -1,3 +1,5 @@
+composer create-project laravel/laravel zatrano
+**********************************************************************************
 ***Auth***
 composer require laravel/ui
 php artisan ui:auth
