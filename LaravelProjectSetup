@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\Schema;
 
 public function boot()
 {
-		Schema::defaultStringLength(191);
+		Schema::defaultStringLength(255);
 		setLocale(LC_TIME, 'tr_TR');
 		\Carbon\Carbon::setLocale('tr');
 }
