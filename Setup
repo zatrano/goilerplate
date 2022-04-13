@@ -73,6 +73,11 @@ use SoftDeletes, Userstamps, HasRoles;
 
 protected $table = 'users';
 
+public function getRouteKeyName()
+{
+    return 'private_key';
+}
+
 protected static function boot() {
     parent::boot();
 
