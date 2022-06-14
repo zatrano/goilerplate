@@ -1,2 +1,5 @@
+//yeni proje oluşturma
+go mod init github.com/zatrano/go-test
+
 //paket yükledikten sonra vendora işlenmesi için gereken kod
 go mod vendor 
