@@ -6,9 +6,9 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-type UserRouter struct{}
+type BookRouter struct{}
 
-func (userRouter *UserRouter) SetupRoutes(router fiber.Router) {
+func (bookRouter *BookRouter) SetupRoutes(router fiber.Router) {
 	books := router.Group("/books")
 	books.Get("/", handlers.GetAllBooks)
 	books.Get("/:id", handlers.GetBookByID)
