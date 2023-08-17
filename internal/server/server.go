@@ -5,7 +5,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/joho/godotenv"
-	"github.com/zatrano/zatrano/internal/app/handlers"
+	router "github.com/zatrano/zatrano/internal/app/routes"
 )
 
 func Server() {
@@ -16,11 +16,7 @@ func Server() {
 
 	app := fiber.New()
 
-	app.Get("/books", handlers.GetAllBooks)
-	app.Get("/books/:id", handlers.GetBookByID)
-	app.Post("/books", handlers.CreateBook)
-	app.Put("/books/:id", handlers.UpdateBook)
-	app.Delete("/books/:id", handlers.DeleteBook)
+	router.SetupRoutes(app)
 
 	app.Listen(":3000")
 }
