@@ -1,1 +1,1 @@
-Golang Fiber Boilerplate
+Golang Fiber Boilerplate - Clean Architecture
