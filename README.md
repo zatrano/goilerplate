@@ -1,2 +1,3 @@
 Golang Fiber Boilerplate - Clean Architecture
-Rename edit.evt to .env
+## Edit
+Rename **`edit.env`** -> **`env`**
