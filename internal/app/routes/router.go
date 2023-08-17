@@ -13,7 +13,7 @@ func SetupRoutes(app *fiber.App) {
 	v1 := api.Group("/v1")
 
 	routes := []Router{
-		&UserRouter{},
+		&BookRouter{},
 	}
 
 	for _, route := range routes {
