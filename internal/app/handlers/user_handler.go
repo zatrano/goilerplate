@@ -9,8 +9,27 @@ import (
 	"zatrano/internal/app/services"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/go-playground/validator/v10"
 	"gorm.io/gorm"
 )
+
+func createUserDTOToModel(input dtos.CreateUserDTO) models.User {
+	return models.User{
+		Name: input.Name,
+	}
+}
+
+func validateInputs(input interface{}) error {
+	validate := validator.New()
+	return validate.Struct(input)
+}
+
+func handleError(c *fiber.Ctx, err error) error {
+	if err == gorm.ErrRecordNotFound {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
+	}
+	return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Server error"})
+}
 
 func GetAllUsers(c *fiber.Ctx) error {
 	repo := repositories.NewUserRepository()
@@ -18,7 +37,7 @@ func GetAllUsers(c *fiber.Ctx) error {
 
 	users, err := service.GetAllUsers()
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Server error"})
+		return handleError(c, err)
 	}
 
 	userDTOs := make([]dtos.UserDTO, len(users))
@@ -44,10 +63,7 @@ func GetUserByID(c *fiber.Ctx) error {
 
 	user, err := service.GetUserByID(uint(userID))
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
-		}
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Server error"})
+		return handleError(c, err)
 	}
 
 	userDTO := dtos.UserDTO{
@@ -66,11 +82,15 @@ func CreateUser(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request payload"})
 	}
 
-	createdUser, err := service.CreateUser(models.User{
-		Name: input.Name,
-	})
+	if err := validateInputs(input); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid input data"})
+	}
+
+	newUser := createUserDTOToModel(input)
+
+	createdUser, err := service.CreateUser(newUser)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Server error"})
+		return handleError(c, err)
 	}
 
 	response := dtos.UserDTO{
@@ -95,19 +115,20 @@ func UpdateUser(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request payload"})
 	}
 
+	if err := validateInputs(input); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid input data"})
+	}
+
 	userToUpdate, err := service.GetUserByID(uint(userID))
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
-		}
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Server error"})
+		return handleError(c, err)
 	}
 
 	userToUpdate.Name = input.Name
 
 	updatedUser, err := service.UpdateUser(userToUpdate)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Server error"})
+		return handleError(c, err)
 	}
 
 	response := dtos.UserDTO{
@@ -129,10 +150,7 @@ func DeleteUser(c *fiber.Ctx) error {
 
 	err = service.DeleteUser(uint(userID))
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
-		}
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Server error"})
+		return handleError(c, err)
 	}
 	return c.SendStatus(fiber.StatusNoContent)
 }
