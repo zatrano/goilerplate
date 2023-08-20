@@ -20,7 +20,7 @@ func NewAuthMiddleware(jwtKey []byte) *AuthMiddleware {
 func (middleware *AuthMiddleware) VerifyToken(c *fiber.Ctx) error {
 	tokenString := c.Get("Authorization")
 	if tokenString == "" {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"message": "Token bulunamadı"})
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Token bulunamadı"})
 	}
 
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
@@ -31,13 +31,14 @@ func (middleware *AuthMiddleware) VerifyToken(c *fiber.Ctx) error {
 	})
 
 	if err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"message": "Geçersiz token"})
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Geçersiz veya süresi dolmuş token"})
 	}
 
 	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-		c.Locals("userID", claims["id"].(float64)) // User ID'yi yerel değişkende sakla
+		userID := int(claims["id"].(float64)) // User ID'yi yerel değişkende sakla
+		c.Locals("userID", userID)
 		return c.Next()
 	}
 
-	return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"message": "Geçersiz token"})
+	return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Geçersiz veya süresi dolmuş token"})
 }
