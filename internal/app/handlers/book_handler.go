@@ -9,8 +9,36 @@ import (
 	"zatrano/internal/app/services"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/go-playground/validator/v10"
 	"gorm.io/gorm"
 )
+
+func createBookDTOToModel(input dtos.CreateBookDTO) models.Book {
+	return models.Book{
+		Title: input.Title,
+		Author: models.Author{
+			Name: input.Author.Name,
+		},
+	}
+}
+
+func updateBookDTOToModel(input dtos.UpdateBookDTO, book models.Book) models.Book {
+	book.Title = input.Title
+	book.Author.Name = input.Author.Name
+	return book
+}
+
+func validateInputs(input interface{}) error {
+	validate := validator.New()
+	return validate.Struct(input)
+}
+
+func handleError(c *fiber.Ctx, err error) error {
+	if err == gorm.ErrRecordNotFound {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Book not found"})
+	}
+	return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Server error"})
+}
 
 func GetAllBooks(c *fiber.Ctx) error {
 	repo := repositories.NewBookRepository()
@@ -18,7 +46,7 @@ func GetAllBooks(c *fiber.Ctx) error {
 
 	books, err := service.GetAllBooks()
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Server error"})
+		return handleError(c, err)
 	}
 
 	bookDTOs := make([]dtos.BookDTO, len(books))
@@ -48,10 +76,7 @@ func GetBookByID(c *fiber.Ctx) error {
 
 	book, err := service.GetBookByID(uint(bookID))
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Book not found"})
-		}
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Server error"})
+		return handleError(c, err)
 	}
 
 	bookDTO := dtos.BookDTO{
@@ -74,18 +99,15 @@ func CreateBook(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request payload"})
 	}
 
-	author := models.Author{
-		Name: input.Author.Name,
+	if err := validateInputs(input); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid input data"})
 	}
 
-	newBook := models.Book{
-		Title:  input.Title,
-		Author: author,
-	}
+	newBook := createBookDTOToModel(input)
 
 	createdBook, err := service.CreateBook(newBook)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Server error"})
+		return handleError(c, err)
 	}
 
 	response := dtos.BookDTO{
@@ -114,30 +136,27 @@ func UpdateBook(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request payload"})
 	}
 
+	if err := validateInputs(input); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid input data"})
+	}
+
 	bookToUpdate, err := service.GetBookByID(uint(bookID))
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Book not found"})
-		}
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Server error"})
+		return handleError(c, err)
 	}
 
-	bookToUpdate.Title = input.Title
-
-	author := models.Author{
-		Name: input.Author.Name,
-	}
-	bookToUpdate.Author = author
+	bookToUpdate = updateBookDTOToModel(input, bookToUpdate)
 
 	updatedBook, err := service.UpdateBook(bookToUpdate)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Server error"})
+		return handleError(c, err)
 	}
 
 	response := dtos.BookDTO{
 		ID:    updatedBook.ID,
 		Title: updatedBook.Title,
 		Author: dtos.AuthorDTO{
+			ID:   updatedBook.Author.ID,
 			Name: updatedBook.Author.Name,
 		},
 	}
@@ -156,10 +175,7 @@ func DeleteBook(c *fiber.Ctx) error {
 
 	err = service.DeleteBook(uint(bookID))
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Book not found"})
-		}
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Server error"})
+		return handleError(c, err)
 	}
 	return c.SendStatus(fiber.StatusNoContent)
 }
