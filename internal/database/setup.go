@@ -22,7 +22,7 @@ func SetupDatabase() *gorm.DB {
 		panic("Failed to connect database")
 	}
 
-	err = db.AutoMigrate(&models.Author{}, &models.Book{})
+	err = db.AutoMigrate(&models.Author{}, &models.Book{}, &models.User{})
 	if err != nil {
 		panic("Failed to migrate database")
 	}
