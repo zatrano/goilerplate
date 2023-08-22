@@ -3,7 +3,7 @@ package models
 type Author struct {
 	BaseModel
 	Name  string `gorm:"not null"`
-	Books []Book // Author'a ait kitaplar
+	Books []Book
 }
 
 func (Author) TableName() string {
