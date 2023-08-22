@@ -162,7 +162,7 @@ func DeleteAuthor(c *fiber.Ctx) error {
 	}
 
 	logger := helpers.GetLogger()
-	logger.Info("Author deleted", zap.String("author_name", authorIDParam))
+	logger.Info("Author deleted", zap.String("author_id", authorIDParam))
 
 	return helpers.SendJSONResponse(c, fiber.StatusNoContent, "Success", nil)
 }
