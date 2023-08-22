@@ -5,7 +5,6 @@ type User struct {
 	Name     string `gorm:"not null"`
 	Email    string `gorm:"not null"`
 	Password string `gorm:"not null"`
-	Books    []Book
 }
 
 func (User) TableName() string {
