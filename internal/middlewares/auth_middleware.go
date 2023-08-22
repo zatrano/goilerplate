@@ -35,7 +35,7 @@ func (middleware *AuthMiddleware) VerifyToken(c *fiber.Ctx) error {
 	}
 
 	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-		userID := int(claims["id"].(float64)) // User ID'yi yerel değişkende sakla
+		userID := int(claims["id"].(float64))
 		c.Locals("userID", userID)
 		return c.Next()
 	}
